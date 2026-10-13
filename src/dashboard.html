@@ -1,0 +1,920 @@
+<title>Frame Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: a 1280x800 landscape wall panel. Main view on the left, a touch tab rail on the right edge.
+   One committed dark look (a lamp-lit room at night), dimmed further overnight.
+   Colors use 6-digit hex and rgb() only: the frame's WebView 106 rejects 8-digit hex. */
+:root {
+  --bg: #11161b;
+  --panel: #192028;
+  --panel-2: #212a34;
+  --line: #2a333d;
+  --fg: #ede8e0;
+  --muted: #8f9aa6;
+  --lamp: #f0b35e;
+  --lamp-ink: #241a0c;
+  --rain: #72b4da;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "Figtree", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 18px;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+
+.app {
+  box-sizing: border-box;
+  height: 100%;
+  max-width: 1280px;
+  max-height: 800px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 104px;
+}
+.view { box-sizing: border-box; height: 100%; min-width: 0; min-height: 0; padding: 36px 40px 28px 44px; }
+.view-title { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+.view-title h1 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 40px; letter-spacing: -1px; flex: 1; min-width: 0; }
+.eyebrow { font-size: 15px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+
+/* Tab rail */
+.rail {
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: stretch;
+  padding: 18px 0;
+  gap: 4px;
+}
+.rail-time { text-align: center; font-family: var(--display); font-size: 24px; height: 52px; line-height: 52px; color: var(--muted); }
+.tab {
+  position: relative;
+  background: none; border: 0;
+  height: 96px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  color: var(--muted);
+  font-size: 14px; font-weight: 600; letter-spacing: .5px;
+}
+.tab svg { width: 32px; height: 32px; }
+.tab[aria-selected="true"] { color: var(--fg); background: var(--panel-2); }
+.tab[aria-selected="true"]::before { content: ""; position: absolute; left: 0; top: 18px; bottom: 18px; width: 4px; border-radius: 0 4px 4px 0; background: var(--lamp); }
+.tab .badge { position: absolute; top: 14px; right: 22px; min-width: 22px; height: 22px; border-radius: 11px; background: var(--lamp); color: var(--lamp-ink); font-size: 13px; line-height: 22px; text-align: center; padding: 0 5px; box-sizing: border-box; }
+.rail .spacer { flex: 1; }
+
+/* Shared controls */
+.btn { border: 0; border-radius: 14px; height: 56px; padding: 0 24px; font-weight: 600; font-size: 19px; background: var(--panel-2); }
+.btn.primary { background: var(--lamp); color: var(--lamp-ink); }
+.btn.quiet { background: none; color: var(--muted); }
+.btn.icon { width: 56px; padding: 0; font-size: 26px; line-height: 1; }
+.btn:disabled { opacity: .4; }
+.field {
+  box-sizing: border-box; width: 100%; height: 60px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--bg); padding: 0 18px; font-size: 21px;
+  -webkit-user-select: text; user-select: text;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip-btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; height: 48px; padding: 0 18px; font-size: 18px; font-weight: 500; }
+.chip-btn[aria-pressed="true"] { background: var(--lamp); border-color: var(--lamp); color: var(--lamp-ink); }
+.chip-btn:disabled { opacity: .35; }
+.chip-btn[aria-pressed="true"] span { color: var(--lamp-ink) !important; }
+
+/* Home */
+.home { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; }
+.col { display: flex; flex-direction: column; gap: 26px; min-width: 0; min-height: 0; }
+.clock { display: flex; align-items: baseline; gap: 12px; }
+.time { font-family: var(--display); font-weight: 400; font-size: 156px; line-height: .86; letter-spacing: -6px; }
+.ampm { font-family: var(--display); font-size: 32px; color: var(--muted); letter-spacing: 1px; }
+.date { font-size: 28px; font-weight: 500; margin-top: 14px; }
+.date span { color: var(--lamp); }
+.now { display: flex; align-items: center; gap: 20px; padding-top: 22px; border-top: 1px solid var(--line); }
+.now svg { width: 76px; height: 76px; flex: none; }
+.temp { font-family: var(--display); font-size: 76px; line-height: 1; letter-spacing: -2px; }
+.now-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.now-meta .cond { font-size: 23px; font-weight: 600; }
+.now-meta .sub { color: var(--muted); font-size: 17px; }
+.next { display: flex; flex-direction: column; gap: 6px; }
+.next .ttl { font-family: var(--display); font-size: 36px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next .in { font-size: 19px; color: var(--lamp); font-weight: 600; }
+.next .in span { color: var(--muted); font-weight: 400; }
+.days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: auto; }
+.day { background: var(--panel); border-radius: 14px; padding: 12px 4px 10px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.day .dn { font-size: 14px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.day svg { width: 38px; height: 38px; }
+.day .hl { font-size: 19px; font-weight: 600; }
+.day .hl i { font-style: normal; color: var(--muted); font-weight: 400; }
+.day .pp { font-size: 14px; color: var(--rain); min-height: 17px; }
+.agenda { display: flex; flex-direction: column; gap: 20px; min-height: 0; overflow: hidden; }
+.group h2 { margin: 0 0 8px; display: flex; justify-content: space-between; }
+.group h2 b { color: var(--lamp); font-weight: 600; }
+.ev { display: grid; grid-template-columns: 96px 6px 1fr; gap: 0 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.ev:last-child { border-bottom: 0; }
+.ev .when { font-size: 18px; color: var(--muted); text-align: right; white-space: nowrap; }
+.ev .dot { width: 6px; height: 28px; border-radius: 3px; }
+.ev .what { font-size: 22px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ev.past { opacity: .45; }
+.ev.live .when { color: var(--lamp); font-weight: 600; }
+.empty { color: var(--muted); font-size: 20px; padding: 6px 0; }
+.foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 14px; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+
+/* Calendar week */
+.cal-view { display: flex; flex-direction: column; }
+.week { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.wday { background: var(--panel); border-radius: 16px; padding: 14px 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; overflow: hidden; }
+.wday-h { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px 6px; }
+.wday-h .dn { font-size: 14px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.wday-h .dd { font-family: var(--display); font-size: 30px; }
+.wday.today { background: var(--panel-2); }
+.wday.today .dd { color: var(--lamp); }
+.wev { border: 0; text-align: left; background: var(--bg); border-radius: 10px; padding: 8px 10px 8px 12px; border-left: 4px solid var(--muted); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wev .t { font-size: 14px; color: var(--muted); }
+.wev .n { font-size: 17px; font-weight: 500; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.wday .more { font-size: 14px; color: var(--muted); padding: 0 4px; }
+.wday .add-here { margin-top: auto; border: 1px dashed var(--line); background: none; border-radius: 10px; height: 44px; color: var(--muted); font-size: 22px; }
+
+/* Lists: groceries, chores */
+.split { display: grid; grid-template-columns: 1fr 400px; gap: 36px; height: calc(100% - 78px); }
+.list { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.row { border: 0; background: none; text-align: left; display: flex; align-items: center; gap: 18px; min-height: 64px; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 23px; font-weight: 500; }
+.row .box { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--muted); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+.row.done { color: var(--muted); }
+.row.done .label { text-decoration: line-through; }
+.row.done .box { background: var(--lamp); border-color: var(--lamp); }
+.row.done .box::after { content: ""; width: 12px; height: 7px; border-left: 3px solid var(--lamp-ink); border-bottom: 3px solid var(--lamp-ink); transform: rotate(-45deg) translate(1px, -1px); }
+.row .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .who { font-size: 15px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+.side { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+.add-row { display: flex; gap: 10px; }
+.add-row .field { flex: 1; min-width: 0; }
+.count { font-size: 18px; color: var(--muted); }
+
+/* Meals */
+.meals { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; height: calc(100% - 78px); }
+.meal { border: 0; text-align: left; background: var(--panel); border-radius: 16px; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.meal.today { background: var(--panel-2); }
+.meal .dn { font-size: 14px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.meal.today .dn { color: var(--lamp); }
+.meal .dish { font-family: var(--display); font-size: 26px; line-height: 1.15; overflow-wrap: break-word; }
+.meal .dish.none { color: var(--muted); font-family: var(--body); font-size: 18px; }
+.meal .edit { margin-top: auto; font-size: 15px; color: var(--muted); }
+
+/* Sports */
+.sports { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; height: 100%; }
+.team { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow: hidden; }
+.team.clt { --team: #3da3e4; }
+.team.chk { --team: #e8475e; }
+.team-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 3px solid var(--team); padding-bottom: 10px; }
+.team-h h2 { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 600; letter-spacing: -.5px; }
+.team-h .rec { font-family: var(--display); font-size: 30px; }
+.team-sub { color: var(--muted); font-size: 17px; margin-top: -8px; }
+.game { background: var(--panel); border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.game .when { font-size: 16px; color: var(--muted); }
+.game .vs { font-family: var(--display); font-size: 32px; line-height: 1.05; }
+.game .vs small { font-family: var(--body); font-size: 18px; color: var(--muted); }
+.wdl { display: flex; height: 30px; border-radius: 8px; overflow: hidden; font-size: 15px; font-weight: 600; line-height: 30px; }
+.wdl div { text-align: center; white-space: nowrap; overflow: hidden; color: #0d1115; }
+.wdl .w { background: var(--team); } .wdl .d { background: #6b7784; } .wdl .l { background: #c4cdd6; }
+.wdl-key { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); margin-top: -4px; }
+.pick { font-size: 18px; } .pick b { color: var(--team); }
+.pick-why { font-size: 15px; color: var(--muted); }
+.mini-rows { display: flex; flex-direction: column; }
+.mini-row { display: grid; grid-template-columns: 74px 1fr auto; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 17px; }
+.mini-row:last-child { border-bottom: 0; }
+.mini-row .d { color: var(--muted); font-size: 15px; }
+.mini-row .o { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mini-row .r { color: var(--muted); font-size: 15px; white-space: nowrap; }
+.table-rows .mini-row { grid-template-columns: 24px 1fr 52px; padding: 5px 0; font-size: 16px; }
+.table-rows .mini-row .r { text-align: right; color: var(--fg); }
+.table-rows .mini-row.us { color: var(--team); font-weight: 600; }
+.asof { font-size: 13px; color: var(--muted); margin-top: auto; }
+
+/* Sheet (modal for adding things) */
+.sheet-veil { position: fixed; inset: 0; background: #05080b; opacity: .7; }
+.sheet {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 680px; max-width: calc(100% - 32px); box-sizing: border-box;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 28px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.sheet h3 { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 600; }
+.sheet .actions { display: flex; justify-content: flex-end; gap: 10px; }
+.sheet .actions .danger { margin-right: auto; color: #e58a7a; background: none; }
+
+/* Overnight dimming. Real screen-off needs the kiosk app; this keeps the panel from lighting the room. */
+.night-veil { position: fixed; inset: 0; background: #000000; opacity: 0; pointer-events: none; transition: opacity 2s; }
+body.night .night-veil { opacity: .72; }
+
+@media (max-height: 760px) and (min-width: 761px) { body { overflow: auto; } .app { height: 800px; } }
+@media (max-width: 760px) {
+  body { overflow: auto; font-size: 16px; }
+  .sports { grid-template-columns: 1fr; height: auto; }
+  .app { grid-template-columns: 1fr; max-height: none; height: auto; padding-bottom: 84px; }
+  .view { height: auto; padding: 24px 16px; }
+  .rail { position: fixed; left: 0; right: 0; bottom: 0; flex-direction: row; padding: 0 0 env(safe-area-inset-bottom, 0px); border-left: 0; border-top: 1px solid var(--line); z-index: 5; }
+  .rail-time, .rail .spacer { display: none; }
+  .tab { flex: 1; height: 72px; font-size: 12px; gap: 4px; }
+  .tab svg { width: 24px; height: 24px; }
+  .tab[aria-selected="true"]::before { left: 18px; right: 18px; top: 0; bottom: auto; width: auto; height: 3px; border-radius: 0 0 3px 3px; }
+  .tab .badge { top: 6px; right: 14%; }
+  .home, .split { grid-template-columns: 1fr; height: auto; gap: 28px; }
+  .time { font-size: 96px; letter-spacing: -3px; }
+  .date { font-size: 22px; }
+  .temp { font-size: 56px; }
+  .week, .meals { grid-template-columns: 1fr; height: auto; }
+  .wday { min-height: 0; }
+  .ev { grid-template-columns: 78px 6px 1fr; gap: 0 10px; }
+  .ev .what, .row { font-size: 18px; }
+  .view-title h1 { font-size: 30px; }
+}
+@media (prefers-reduced-motion: reduce) { .night-veil { transition: none; } }
+</style>
+
+<div class="app">
+  <main id="views">
+    <section class="view home" id="view-home">
+      <div class="col">
+        <div>
+          <div class="clock"><div class="time" id="time"></div><div class="ampm" id="ampm"></div></div>
+          <div class="date" id="date"></div>
+        </div>
+        <div class="now" id="now"></div>
+        <div class="next" id="next"></div>
+        <div class="days" id="days"></div>
+      </div>
+      <div class="col">
+        <div class="agenda" id="agenda"></div>
+        <div class="foot"><span id="updated"></span><span class="chip" id="source">Sample data</span></div>
+      </div>
+    </section>
+
+    <section class="view cal-view" id="view-calendar" hidden>
+      <div class="view-title">
+        <h1 id="cal-range"></h1>
+        <button class="btn icon" data-action="week" data-dir="-1" aria-label="Previous week">‹</button>
+        <button class="btn icon" data-action="week" data-dir="1" aria-label="Next week">›</button>
+        <button class="btn primary" data-action="add-event">Add event</button>
+      </div>
+      <div class="week" id="week"></div>
+    </section>
+
+    <section class="view" id="view-groceries" hidden>
+      <div class="view-title"><h1>Groceries</h1><span class="count" id="g-count"></span></div>
+      <div class="split">
+        <div class="list" id="g-list"></div>
+        <div class="side">
+          <form class="add-row" data-form="grocery">
+            <input class="field" id="g-input" placeholder="Add an item" autocomplete="off" aria-label="Grocery item">
+            <button class="btn primary" type="submit">Add</button>
+          </form>
+          <div class="eyebrow">Quick add</div>
+          <div class="chips" id="g-quick"></div>
+          <button class="btn quiet" data-action="clear-groceries" id="g-clear" style="margin-top:auto;align-self:flex-start"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-meals" hidden>
+      <div class="view-title"><h1>Dinners this week</h1></div>
+      <div class="meals" id="meals"></div>
+    </section>
+
+    <section class="view" id="view-sports" hidden>
+      <div class="sports">
+        <div class="team clt" id="clt"></div>
+        <div class="team chk" id="chk"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-chores" hidden>
+      <div class="view-title"><h1>Chores today</h1><span class="count" id="c-count"></span></div>
+      <div class="split">
+        <div class="list" id="c-list"></div>
+        <div class="side">
+          <form class="add-row" data-form="chore">
+            <input class="field" id="c-input" placeholder="Add a chore" autocomplete="off" aria-label="Chore">
+            <button class="btn primary" type="submit">Add</button>
+          </form>
+          <div class="eyebrow">Who</div>
+          <div class="chips" id="c-who"></div>
+          <div class="count" style="margin-top:auto">Checks reset every morning. Tap and hold a chore to remove it.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="rail" role="tablist" aria-label="Sections">
+    <div class="rail-time" id="rail-time" style="visibility:hidden"></div>
+    <button class="tab" role="tab" data-tab="home" aria-selected="true">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M5 14 16 5l11 9v13H19v-8h-6v8H5z"/></svg>Home</button>
+    <button class="tab" role="tab" data-tab="calendar" aria-selected="false">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="7" width="22" height="20" rx="3"/><path d="M5 13h22M11 4v6M21 4v6"/></svg>Calendar</button>
+    <button class="tab" role="tab" data-tab="groceries" aria-selected="false">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h4l3 15h15l3-11H9"/><circle cx="12" cy="26" r="1.8"/><circle cx="23" cy="26" r="1.8"/></svg>Groceries<span class="badge" id="g-badge" hidden></span></button>
+    <button class="tab" role="tab" data-tab="meals" aria-selected="false">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h24a12 12 0 0 1-24 0zM10 10c0-2 2-2 2-4M16 10c0-2 2-2 2-4M22 10c0-2 2-2 2-4"/></svg>Meals</button>
+    <button class="tab" role="tab" data-tab="chores" aria-selected="false">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="22" height="22" rx="5"/><path d="m11 16 4 4 7-8"/></svg>Chores<span class="badge" id="c-badge" hidden></span></button>
+    <button class="tab" role="tab" data-tab="sports" aria-selected="false">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><circle cx="16" cy="16" r="11"/><path d="m16 10 5 3.6-1.9 5.9h-6.2L11 13.6z"/><path d="M16 5v5M26.5 12.6 21 13.6M22.5 25l-3.4-5.5M9.5 25l3.4-5.5M5.5 12.6l5.5 1"/></svg>Sports</button>
+    <div class="spacer"></div>
+  </nav>
+</div>
+<div id="sheet-root" hidden><div class="sheet-veil" data-action="close-sheet"></div><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="night-veil"></div>
+
+<script>
+// ---- Settings: edit these, then reload the frame ----
+var CONFIG = {
+  place: 'Charlotte',
+  lat: 35.2271,            // Charlotte, NC
+  lon: -80.8431,
+  timeZone: 'America/New_York', // clock and calendar show this zone's time, whatever the frame is set to
+  units: 'fahrenheit',     // or 'celsius'
+  clock24: false,
+  calendarUrl: '',         // JSON feed of events, see README. Empty shows sample events.
+  sportsUrl: 'sports.json', // written by the Charlotte FC and Checkers update routines; see README
+  people: ['Erik', 'Kids', 'Anyone'],
+  nightStart: 22,          // dim from 10pm
+  nightEnd: 6.5,           // until 6:30am
+  idleReturnSec: 120,      // go back to Home after this long without a touch
+  weatherEveryMin: 15,
+  calendarEveryMin: 10
+};
+
+var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var CAL_COLORS = { family: '#f0b35e', school: '#72b4da', work: '#a9c98a', other: '#c9a0dc' };
+var QUICK = ['Milk','Eggs','Bread','Bananas','Apples','Coffee','Butter','Cheese','Yogurt','Chicken','Pasta','Rice','Onions','Paper towels'];
+var MEAL_IDEAS = ['Tacos','Pasta','Stir fry','Pizza night','Soup','Burgers','Salmon','Leftovers','Eat out'];
+
+function el(id) { return document.getElementById(id); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function at(d, h, m) { var x = new Date(d); x.setHours(h, m || 0, 0, 0); return x; }
+function dayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+// Wall-clock time in CONFIG.timeZone, as a Date whose local fields read as that zone's time
+var zoneFmt = null;
+try { zoneFmt = new Intl.DateTimeFormat('en-US', { timeZone: CONFIG.timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }); } catch (e) {}
+function zt(x) {
+  var d = new Date(x);
+  if (!zoneFmt) return d;
+  var p = {};
+  zoneFmt.formatToParts(d).forEach(function (part) { p[part.type] = +part.value; });
+  return new Date(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second);
+}
+function nowZ() { return zt(Date.now()); }
+// Events added on the frame are stored as zone-free wall time, e.g. "2026-10-15T18:00"
+function wallStr(d) { function z(n) { return (n < 10 ? '0' : '') + n; } return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+function parseWall(s) { var m = String(s).split(/[-T:]/); return new Date(+m[0], +m[1] - 1, +m[2], +(m[3] || 0), +(m[4] || 0)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function hm(d) {
+  var h = d.getHours(), m = d.getMinutes();
+  if (CONFIG.clock24) return h + ':' + (m < 10 ? '0' : '') + m;
+  var h12 = h % 12 || 12;
+  return h12 + (m ? ':' + (m < 10 ? '0' : '') + m : '') + (h < 12 ? 'a' : 'p');
+}
+
+// ---- Storage. Lives on this device for now; swap get/set for a sync server so phones can add too. ----
+var store = {
+  get: function (k, d) { try { var v = localStorage.getItem('frame.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set: function (k, v) { try { localStorage.setItem('frame.' + k, JSON.stringify(v)); } catch (e) {} }
+};
+
+var state = {
+  tab: 'home', weekOffset: 0,
+  weatherLive: false, calLive: false, feedEvents: null,
+  localEvents: store.get('events', []),
+  groceries: store.get('groceries', [
+    { id: 'g1', name: 'Milk', done: false }, { id: 'g2', name: 'Eggs', done: false },
+    { id: 'g3', name: 'Bananas', done: true }, { id: 'g4', name: 'Coffee', done: false },
+    { id: 'g5', name: 'Taco shells', done: false }
+  ]),
+  meals: store.get('meals', {}),
+  chores: store.get('chores', [
+    { id: 'c1', name: 'Empty the dishwasher', who: 'Kids' }, { id: 'c2', name: 'Take out trash', who: 'Erik' },
+    { id: 'c3', name: 'Make beds', who: 'Kids' }, { id: 'c4', name: 'Water plants', who: 'Anyone' },
+    { id: 'c5', name: 'Tidy living room', who: 'Anyone' }
+  ]),
+  choreDone: store.get('choreDone', { day: '', ids: [] }),
+  choreWho: 'Anyone'
+};
+if (!store.get('meals', null)) {
+  var t0 = nowZ();
+  state.meals[dayKey(t0)] = 'Tacos';
+  state.meals[dayKey(addDays(t0, 1))] = 'Salmon and rice';
+  state.meals[dayKey(addDays(t0, 3))] = 'Pizza night';
+}
+
+// ---- Tabs and idle return ----
+function showTab(tab) {
+  state.tab = tab;
+  ['home', 'calendar', 'groceries', 'meals', 'chores', 'sports'].forEach(function (t) { el('view-' + t).hidden = t !== tab; });
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
+  el('rail-time').style.visibility = tab === 'home' ? 'hidden' : 'visible';
+  if (tab !== 'calendar') state.weekOffset = 0;
+  renderAll();
+}
+var lastTouch = Date.now();
+['pointerdown', 'keydown'].forEach(function (ev) { document.addEventListener(ev, function () { lastTouch = Date.now(); }, true); });
+
+// ---- Clock and night mode ----
+function tick() {
+  var d = nowZ(), h = d.getHours(), m = d.getMinutes();
+  var mm = (m < 10 ? '0' : '') + m;
+  var t = CONFIG.clock24 ? h + ':' + mm : (h % 12 || 12) + ':' + mm;
+  el('time').textContent = t;
+  el('rail-time').textContent = t;
+  el('ampm').textContent = CONFIG.clock24 ? '' : (h < 12 ? 'AM' : 'PM');
+  el('date').innerHTML = DAYS[d.getDay()] + ', <span>' + MONTHS[d.getMonth()] + ' ' + d.getDate() + '</span>';
+  var hour = h + m / 60;
+  var night = CONFIG.nightStart > CONFIG.nightEnd
+    ? (hour >= CONFIG.nightStart || hour < CONFIG.nightEnd)
+    : (hour >= CONFIG.nightStart && hour < CONFIG.nightEnd);
+  document.body.classList.toggle('night', night && Date.now() - lastTouch > 60000);
+  if (state.tab !== 'home' && el('sheet-root').hidden && Date.now() - lastTouch > CONFIG.idleReturnSec * 1000) showTab('home');
+  if (state.choreDone.day !== dayKey(d)) { state.choreDone = { day: dayKey(d), ids: [] }; store.set('choreDone', state.choreDone); renderBadges(); }
+}
+
+// ---- Weather (Open-Meteo: free, no key, allows browser requests) ----
+var ICON = {
+  sun: '<circle cx="24" cy="24" r="8" fill="none" stroke="#f0b35e" stroke-width="3"/><g stroke="#f0b35e" stroke-width="3" stroke-linecap="round"><path d="M24 6v5M24 37v5M6 24h5M37 24h5M11.3 11.3l3.5 3.5M33.2 33.2l3.5 3.5M11.3 36.7l3.5-3.5M33.2 14.8l3.5-3.5"/></g>',
+  partly: '<circle cx="18" cy="18" r="6.5" fill="none" stroke="#f0b35e" stroke-width="3"/><g stroke="#f0b35e" stroke-width="3" stroke-linecap="round"><path d="M18 5v3M5 18h3M8.8 8.8l2.1 2.1M27.2 8.8l-2.1 2.1"/></g><path d="M16 38h20a7 7 0 0 0 0-14 10 10 0 0 0-19 3 5.5 5.5 0 0 0-1 11z" fill="#192028" stroke="#ede8e0" stroke-width="3" stroke-linejoin="round"/>',
+  cloud: '<path d="M13 36h23a8 8 0 0 0 0-16 11 11 0 0 0-21 3 6.5 6.5 0 0 0-2 13z" fill="none" stroke="#ede8e0" stroke-width="3" stroke-linejoin="round"/>',
+  fog: '<g stroke="#8f9aa6" stroke-width="3" stroke-linecap="round"><path d="M8 18h32M12 25h28M8 32h28M14 39h20"/></g>',
+  rain: '<path d="M13 28h23a8 8 0 0 0 0-16 11 11 0 0 0-21 3 6.5 6.5 0 0 0-2 13z" fill="none" stroke="#ede8e0" stroke-width="3" stroke-linejoin="round"/><g stroke="#72b4da" stroke-width="3" stroke-linecap="round"><path d="M17 34l-2 6M25 34l-2 6M33 34l-2 6"/></g>',
+  snow: '<path d="M13 28h23a8 8 0 0 0 0-16 11 11 0 0 0-21 3 6.5 6.5 0 0 0-2 13z" fill="none" stroke="#ede8e0" stroke-width="3" stroke-linejoin="round"/><g fill="#72b4da"><circle cx="16" cy="37" r="2.2"/><circle cx="24" cy="41" r="2.2"/><circle cx="32" cy="37" r="2.2"/></g>',
+  storm: '<path d="M13 28h23a8 8 0 0 0 0-16 11 11 0 0 0-21 3 6.5 6.5 0 0 0-2 13z" fill="none" stroke="#ede8e0" stroke-width="3" stroke-linejoin="round"/><path d="M26 30l-5 8h6l-4 7" fill="none" stroke="#f0b35e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+};
+// WMO weather codes, as Open-Meteo reports them
+function wmo(code) {
+  if (code === 0) return ['sun', 'Clear'];
+  if (code <= 2) return ['partly', code === 1 ? 'Mostly clear' : 'Partly cloudy'];
+  if (code === 3) return ['cloud', 'Cloudy'];
+  if (code === 45 || code === 48) return ['fog', 'Fog'];
+  if (code >= 51 && code <= 57) return ['rain', 'Drizzle'];
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return ['rain', code >= 80 ? 'Showers' : 'Rain'];
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return ['snow', 'Snow'];
+  if (code >= 95) return ['storm', 'Thunderstorms'];
+  return ['cloud', 'Cloudy'];
+}
+function svg(name) { return '<svg viewBox="0 0 48 48" aria-hidden="true">' + ICON[name] + '</svg>'; }
+
+function sampleWeather() {
+  var today = nowZ(), daily = { time: [], weather_code: [61, 2, 0, 3, 80], temperature_2m_max: [61, 64, 68, 63, 57], temperature_2m_min: [48, 47, 51, 50, 45], precipitation_probability_max: [70, 10, 0, 20, 60] };
+  for (var i = 0; i < 5; i++) { var d = addDays(today, i); daily.time.push(d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate()); }
+  return { current: { temperature_2m: 54, apparent_temperature: 51, weather_code: 3, wind_speed_10m: 9 }, daily: daily };
+}
+
+function renderWeather(w) {
+  var c = w.current, k = wmo(c.weather_code), dly = w.daily;
+  var unit = CONFIG.units === 'celsius' ? 'C' : 'F';
+  el('now').innerHTML = svg(k[0]) +
+    '<div class="temp">' + Math.round(c.temperature_2m) + '°</div>' +
+    '<div class="now-meta"><div class="cond">' + k[1] + '</div>' +
+    '<div class="sub">Feels ' + Math.round(c.apparent_temperature) + '°' + unit + ' · Wind ' + Math.round(c.wind_speed_10m) + (unit === 'F' ? ' mph' : ' km/h') +
+    ' · H ' + Math.round(dly.temperature_2m_max[0]) + '° L ' + Math.round(dly.temperature_2m_min[0]) + '°</div></div>';
+  var html = '';
+  for (var i = 0; i < 5; i++) {
+    var parts = String(dly.time[i]).split('-');
+    var d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    var pp = dly.precipitation_probability_max[i];
+    html += '<div class="day"><div class="dn">' + (i === 0 ? 'Today' : DAYS[d.getDay()].slice(0, 3)) + '</div>' +
+      svg(wmo(dly.weather_code[i])[0]) +
+      '<div class="hl">' + Math.round(dly.temperature_2m_max[i]) + '° <i>' + Math.round(dly.temperature_2m_min[i]) + '°</i></div>' +
+      '<div class="pp">' + (pp >= 20 ? pp + '%' : '') + '</div></div>';
+  }
+  el('days').innerHTML = html;
+}
+
+function loadWeather() {
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + CONFIG.lat + '&longitude=' + CONFIG.lon +
+    '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+    '&temperature_unit=' + CONFIG.units + '&wind_speed_unit=' + (CONFIG.units === 'celsius' ? 'kmh' : 'mph') +
+    '&timezone=auto&forecast_days=5';
+  return fetch(url).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (w) { state.weatherLive = true; renderWeather(w); })
+    .catch(function () { if (!state.weatherLive) renderWeather(sampleWeather()); });
+}
+
+// ---- Calendar ----
+// Feed format: [{ "title": "...", "start": ISO string, "end": ISO string, "allDay": bool, "calendar": "family" }]
+function sampleEvents() {
+  var t = nowZ(), tm = addDays(t, 1), d2 = addDays(t, 2), d3 = addDays(t, 3), d5 = addDays(t, 5);
+  return [
+    { title: 'Trash and recycling out', start: t, allDay: true, calendar: 'family' },
+    { title: 'School drop-off', start: at(t, 8, 0), end: at(t, 8, 30), calendar: 'school' },
+    { title: 'Dentist, Dr. Patel', start: at(t, 10, 30), end: at(t, 11, 30), calendar: 'family' },
+    { title: 'Soccer practice', start: at(t, 16, 30), end: at(t, 18, 0), calendar: 'school' },
+    { title: 'Dinner with the Nguyens', start: at(t, 19, 0), end: at(t, 21, 0), calendar: 'family' },
+    { title: 'Picture day', start: tm, allDay: true, calendar: 'school' },
+    { title: 'Standup', start: at(tm, 9, 0), end: at(tm, 9, 15), calendar: 'work' },
+    { title: 'Piano lesson', start: at(tm, 15, 45), end: at(tm, 16, 30), calendar: 'school' },
+    { title: 'Farmers market', start: at(d2, 9, 0), end: at(d2, 11, 0), calendar: 'family' },
+    { title: 'Grandma visits', start: d3, allDay: true, calendar: 'family' },
+    { title: 'Soccer game', start: at(d5, 10, 0), end: at(d5, 11, 30), calendar: 'school' }
+  ];
+}
+function allEvents() {
+  var feed = state.feedEvents ? state.feedEvents.map(function (e) {
+    // All-day dates ("2026-10-15") are already calendar days; timed events are instants to show in Charlotte time
+    var allDayStart = e.allDay && /^\d{4}-\d\d-\d\d$/.test(e.start);
+    return { title: e.title, start: allDayStart ? parseWall(e.start) : zt(e.start), end: e.end ? (allDayStart ? parseWall(e.end) : zt(e.end)) : null, allDay: e.allDay, calendar: e.calendar };
+  }) : sampleEvents();
+  return feed.concat(state.localEvents.map(function (e) {
+    return { id: e.id, local: true, title: e.title, start: parseWall(e.start), end: e.end ? parseWall(e.end) : null, allDay: e.allDay, calendar: e.calendar };
+  })).sort(function (a, b) {
+    var sa = new Date(a.start), sb = new Date(b.start);
+    if (sameDay(sa, sb) && !!a.allDay !== !!b.allDay) return a.allDay ? -1 : 1;
+    return sa - sb;
+  });
+}
+function eventsOn(events, day) { return events.filter(function (e) { return sameDay(new Date(e.start), day); }); }
+
+function evRow(e, now) {
+  var start = new Date(e.start), end = e.end ? new Date(e.end) : start;
+  var cls = 'ev';
+  if (!e.allDay && end < now) cls += ' past';
+  else if (!e.allDay && start <= now && end > now) cls += ' live';
+  var when = e.allDay ? 'All day' : (cls.indexOf('live') > -1 ? 'Now' : hm(start));
+  return '<div class="' + cls + '"><div class="when">' + when + '</div>' +
+    '<div class="dot" style="background:' + (CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"></div>' +
+    '<div class="what">' + esc(e.title) + '</div></div>';
+}
+
+function renderHome() {
+  var now = nowZ(), events = allEvents(), html = '';
+  [{ label: 'Today', day: now, max: 6 }, { label: 'Tomorrow', day: addDays(now, 1), max: 4 }].forEach(function (g) {
+    var list = eventsOn(events, g.day);
+    var left = list.filter(function (e) { return e.allDay || new Date(e.end || e.start) > now; }).length;
+    html += '<div class="group"><h2 class="eyebrow">' + g.label + (g.label === 'Today' && list.length ? ' <b>' + left + ' left</b>' : '') + '</h2>';
+    html += list.length ? list.slice(0, g.max).map(function (e) { return evRow(e, now); }).join('') : '<div class="empty">Nothing scheduled</div>';
+    html += '</div>';
+  });
+  var later = events.filter(function (e) { var s = new Date(e.start); return s > at(addDays(now, 1), 23, 59) && s < addDays(now, 7); });
+  if (later.length) {
+    html += '<div class="group"><h2 class="eyebrow">Later this week</h2>' + later.slice(0, 2).map(function (e) {
+      return evRow({ title: e.title, start: e.start, allDay: true, calendar: e.calendar }, now).replace('All day', DAYS[new Date(e.start).getDay()].slice(0, 3));
+    }).join('') + '</div>';
+  }
+  el('agenda').innerHTML = html;
+
+  var timed = eventsOn(events, now).filter(function (e) { return !e.allDay && new Date(e.end || e.start) > now; });
+  var dinner = state.meals[dayKey(now)];
+  if (!timed.length) {
+    el('next').innerHTML = '<div class="eyebrow">Next up</div><div class="ttl">' + (dinner ? 'Dinner: ' + esc(dinner) : 'Nothing else today') + '</div>';
+  } else {
+    var e = timed[0], s = new Date(e.start), mins = Math.round((s - now) / 60000);
+    var rel = mins <= 0 ? 'Happening now' : mins < 60 ? 'In ' + mins + ' min' : 'In ' + Math.floor(mins / 60) + ' hr' + (mins % 60 ? ' ' + (mins % 60) + ' min' : '');
+    el('next').innerHTML = '<div class="eyebrow">Next up</div><div class="ttl">' + esc(e.title) + '</div>' +
+      '<div class="in">' + rel + ' <span>· ' + hm(s) + (e.end ? '–' + hm(new Date(e.end)) : '') + (dinner ? ' · Dinner: ' + esc(dinner) : '') + '</span></div>';
+  }
+}
+
+function renderCalendar() {
+  var start = addDays(nowZ(), state.weekOffset * 7), end = addDays(start, 6), events = allEvents(), html = '';
+  el('cal-range').textContent = state.weekOffset === 0 ? 'This week' :
+    MONTHS[start.getMonth()].slice(0, 3) + ' ' + start.getDate() + ' – ' + (start.getMonth() !== end.getMonth() ? MONTHS[end.getMonth()].slice(0, 3) + ' ' : '') + end.getDate();
+  for (var i = 0; i < 7; i++) {
+    var d = addDays(start, i), list = eventsOn(events, d), isToday = sameDay(d, nowZ());
+    html += '<div class="wday' + (isToday ? ' today' : '') + '"><div class="wday-h"><span class="dn">' + (isToday ? 'Today' : DAYS[d.getDay()].slice(0, 3)) + '</span><span class="dd">' + d.getDate() + '</span></div>';
+    list.slice(0, 5).forEach(function (e) {
+      html += '<button class="wev" style="border-left-color:' + (CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"' +
+        (e.local ? ' data-action="event" data-id="' + e.id + '"' : ' tabindex="-1"') + '>' +
+        '<span class="t">' + (e.allDay ? 'All day' : hm(new Date(e.start))) + '</span><span class="n">' + esc(e.title) + '</span></button>';
+    });
+    if (list.length > 5) html += '<div class="more">+' + (list.length - 5) + ' more</div>';
+    html += '<button class="add-here" data-action="add-event" data-day="' + i + '" aria-label="Add event on ' + DAYS[d.getDay()] + '">+</button></div>';
+  }
+  el('week').innerHTML = html;
+}
+
+// ---- Groceries ----
+function renderGroceries() {
+  var items = state.groceries.slice().sort(function (a, b) { return a.done - b.done; });
+  var open = state.groceries.filter(function (g) { return !g.done; }).length, done = state.groceries.length - open;
+  el('g-list').innerHTML = items.length ? items.map(function (g) {
+    return '<button class="row' + (g.done ? ' done' : '') + '" data-action="toggle-grocery" data-id="' + g.id + '"><span class="box"></span><span class="label">' + esc(g.name) + '</span></button>';
+  }).join('') : '<div class="empty">The list is empty</div>';
+  el('g-count').textContent = open ? open + ' to buy' : 'All set';
+  var have = state.groceries.filter(function (g) { return !g.done; }).map(function (g) { return g.name.toLowerCase(); });
+  el('g-quick').innerHTML = QUICK.map(function (q) {
+    return '<button class="chip-btn" data-action="quick-grocery" data-name="' + q + '"' + (have.indexOf(q.toLowerCase()) > -1 ? ' disabled' : '') + '>' + q + '</button>';
+  }).join('');
+  el('g-clear').textContent = 'Clear ' + done + ' checked';
+  el('g-clear').disabled = !done;
+}
+function addGrocery(name) {
+  name = name.trim();
+  if (!name) return;
+  var hit = state.groceries.filter(function (g) { return g.name.toLowerCase() === name.toLowerCase(); })[0];
+  if (hit) hit.done = false; else state.groceries.unshift({ id: uid(), name: name.charAt(0).toUpperCase() + name.slice(1), done: false });
+  store.set('groceries', state.groceries);
+}
+
+// ---- Meals ----
+function renderMeals() {
+  var html = '', today = nowZ();
+  for (var i = 0; i < 7; i++) {
+    var d = addDays(today, i), dish = state.meals[dayKey(d)];
+    html += '<button class="meal' + (i === 0 ? ' today' : '') + '" data-action="meal" data-day="' + i + '">' +
+      '<span class="dn">' + (i === 0 ? 'Tonight' : DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate()) + '</span>' +
+      '<span class="dish' + (dish ? '' : ' none') + '">' + (dish ? esc(dish) : 'Not planned') + '</span>' +
+      '<span class="edit">' + (dish ? 'Change' : 'Plan dinner') + '</span></button>';
+  }
+  el('meals').innerHTML = html;
+}
+
+// ---- Chores ----
+function renderChores() {
+  var doneIds = state.choreDone.ids;
+  el('c-list').innerHTML = state.chores.length ? state.chores.map(function (c) {
+    var done = doneIds.indexOf(c.id) > -1;
+    return '<button class="row' + (done ? ' done' : '') + '" data-action="toggle-chore" data-id="' + c.id + '"><span class="box"></span><span class="label">' + esc(c.name) + '</span><span class="who">' + esc(c.who) + '</span></button>';
+  }).join('') : '<div class="empty">No chores yet</div>';
+  var n = state.chores.filter(function (c) { return doneIds.indexOf(c.id) > -1; }).length;
+  el('c-count').textContent = n + ' of ' + state.chores.length + ' done';
+  el('c-who').innerHTML = CONFIG.people.map(function (p) {
+    return '<button class="chip-btn" data-action="who" data-name="' + esc(p) + '" aria-pressed="' + (p === state.choreWho) + '">' + esc(p) + '</button>';
+  }).join('');
+}
+
+function renderBadges() {
+  var g = state.groceries.filter(function (x) { return !x.done; }).length;
+  var c = state.chores.filter(function (x) { return state.choreDone.ids.indexOf(x.id) < 0; }).length;
+  el('g-badge').hidden = !g; el('g-badge').textContent = g;
+  el('c-badge').hidden = !c; el('c-badge').textContent = c;
+}
+
+function renderAll() {
+  renderBadges();
+  if (state.tab === 'home') renderHome();
+  if (state.tab === 'calendar') renderCalendar();
+  if (state.tab === 'groceries') renderGroceries();
+  if (state.tab === 'meals') renderMeals();
+  if (state.tab === 'chores') renderChores();
+  if (state.tab === 'sports') renderSports();
+}
+
+// ---- Sheets ----
+function openSheet(html) { el('sheet').innerHTML = html; el('sheet-root').hidden = false; var f = el('sheet').querySelector('input'); if (f) f.focus(); }
+function closeSheet() { el('sheet-root').hidden = true; el('sheet').innerHTML = ''; }
+var draft = null;
+
+function eventSheet() {
+  var today = nowZ(), dayChips = '';
+  for (var i = 0; i < 7; i++) {
+    var d = addDays(today, i), label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate();
+    dayChips += '<button class="chip-btn" data-action="draft-day" data-day="' + i + '" aria-pressed="' + (draft.day === i) + '">' + label + '</button>';
+  }
+  var cals = ['family', 'school', 'work'].map(function (c) {
+    return '<button class="chip-btn" data-action="draft-cal" data-cal="' + c + '" aria-pressed="' + (draft.calendar === c) + '"><span style="color:' + CAL_COLORS[c] + '">●</span> ' + c.charAt(0).toUpperCase() + c.slice(1) + '</button>';
+  }).join('');
+  openSheet('<h3>New event</h3>' +
+    '<input class="field" id="ev-title" placeholder="What is it?" autocomplete="off" value="' + esc(draft.title) + '" aria-label="Event title">' +
+    '<div class="chips">' + dayChips + '</div>' +
+    '<div class="chips"><button class="chip-btn" data-action="draft-allday" aria-pressed="' + draft.allDay + '">All day</button>' +
+    '<input class="field" type="time" id="ev-time" value="' + draft.time + '" style="width:180px;height:48px" aria-label="Start time"' + (draft.allDay ? ' disabled' : '') + '></div>' +
+    '<div class="chips">' + cals + '</div>' +
+    '<div class="actions"><button class="btn quiet" data-action="close-sheet">Cancel</button><button class="btn primary" data-action="save-event">Save</button></div>');
+}
+function syncDraft() {
+  var t = el('ev-title'), tm = el('ev-time');
+  if (t) draft.title = t.value;
+  if (tm && tm.value) draft.time = tm.value;
+}
+
+function mealSheet(i) {
+  var d = addDays(nowZ(), i), key = dayKey(d), cur = state.meals[key] || '';
+  openSheet('<h3>Dinner ' + (i === 0 ? 'tonight' : 'on ' + DAYS[d.getDay()]) + '</h3>' +
+    '<form class="add-row" data-form="meal" data-key="' + key + '"><input class="field" id="meal-input" value="' + esc(cur) + '" placeholder="What are we having?" autocomplete="off" aria-label="Dinner"><button class="btn primary" type="submit">Save</button></form>' +
+    '<div class="chips">' + MEAL_IDEAS.map(function (m) { return '<button class="chip-btn" data-action="meal-idea" data-key="' + key + '" data-name="' + m + '">' + m + '</button>'; }).join('') + '</div>' +
+    '<div class="actions">' + (cur ? '<button class="btn danger" data-action="meal-clear" data-key="' + key + '">Clear</button>' : '') + '<button class="btn quiet" data-action="close-sheet">Cancel</button></div>');
+}
+
+// ---- Input handling (one delegated listener; taps only, since some frames merge two-finger touches) ----
+document.addEventListener('click', function (ev) {
+  var t = ev.target.closest('[data-tab],[data-action]');
+  if (!t) return;
+  if (t.hasAttribute('data-tab')) { showTab(t.getAttribute('data-tab')); return; }
+  var a = t.getAttribute('data-action'), id = t.getAttribute('data-id');
+  if (a === 'close-sheet') closeSheet();
+  else if (a === 'week') { state.weekOffset = Math.max(0, state.weekOffset + +t.getAttribute('data-dir')); renderCalendar(); }
+  else if (a === 'add-event') { draft = { title: '', day: +(t.getAttribute('data-day') || 0) + state.weekOffset * 7, allDay: false, time: '18:00', calendar: 'family' }; if (draft.day > 6) draft.day = 0; eventSheet(); }
+  else if (a === 'draft-day') { syncDraft(); draft.day = +t.getAttribute('data-day'); eventSheet(); }
+  else if (a === 'draft-cal') { syncDraft(); draft.calendar = t.getAttribute('data-cal'); eventSheet(); }
+  else if (a === 'draft-allday') { syncDraft(); draft.allDay = !draft.allDay; eventSheet(); }
+  else if (a === 'save-event') {
+    syncDraft();
+    if (!draft.title.trim()) { el('ev-title').focus(); return; }
+    var d = addDays(nowZ(), draft.day), hmv = draft.time.split(':');
+    var s = draft.allDay ? at(d, 0) : at(d, +hmv[0], +hmv[1]);
+    state.localEvents.push({ id: uid(), title: draft.title.trim(), start: wallStr(s), end: draft.allDay ? null : wallStr(new Date(+s + 3600000)), allDay: draft.allDay, calendar: draft.calendar });
+    store.set('events', state.localEvents); closeSheet(); renderAll();
+  }
+  else if (a === 'event') {
+    var e = state.localEvents.filter(function (x) { return x.id === id; })[0];
+    if (e) openSheet('<h3>' + esc(e.title) + '</h3><div class="count">' + DAYS[parseWall(e.start).getDay()] + (e.allDay ? ', all day' : ' at ' + hm(parseWall(e.start))) + '</div>' +
+      '<div class="actions"><button class="btn danger" data-action="delete-event" data-id="' + e.id + '">Delete event</button><button class="btn quiet" data-action="close-sheet">Close</button></div>');
+  }
+  else if (a === 'delete-event') { state.localEvents = state.localEvents.filter(function (x) { return x.id !== id; }); store.set('events', state.localEvents); closeSheet(); renderAll(); }
+  else if (a === 'toggle-grocery') { state.groceries.forEach(function (g) { if (g.id === id) g.done = !g.done; }); store.set('groceries', state.groceries); renderAll(); }
+  else if (a === 'quick-grocery') { addGrocery(t.getAttribute('data-name')); renderAll(); }
+  else if (a === 'clear-groceries') { state.groceries = state.groceries.filter(function (g) { return !g.done; }); store.set('groceries', state.groceries); renderAll(); }
+  else if (a === 'meal') mealSheet(+t.getAttribute('data-day'));
+  else if (a === 'meal-idea') { state.meals[t.getAttribute('data-key')] = t.getAttribute('data-name'); store.set('meals', state.meals); closeSheet(); renderAll(); }
+  else if (a === 'meal-clear') { delete state.meals[t.getAttribute('data-key')]; store.set('meals', state.meals); closeSheet(); renderAll(); }
+  else if (a === 'toggle-chore') {
+    var ids = state.choreDone.ids, k = ids.indexOf(id);
+    if (k > -1) ids.splice(k, 1); else ids.push(id);
+    store.set('choreDone', state.choreDone); renderAll();
+  }
+  else if (a === 'who') { state.choreWho = t.getAttribute('data-name'); renderChores(); }
+});
+
+// Long-press a chore to remove it
+var pressTimer = null;
+document.addEventListener('pointerdown', function (ev) {
+  var t = ev.target.closest('[data-action="toggle-chore"]');
+  if (!t) return;
+  pressTimer = setTimeout(function () {
+    pressTimer = null;
+    var c = state.chores.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0];
+    if (c) openSheet('<h3>Remove "' + esc(c.name) + '"?</h3><div class="actions"><button class="btn quiet" data-action="close-sheet">Keep it</button><button class="btn primary" data-action="remove-chore" data-id="' + c.id + '">Remove</button></div>');
+  }, 700);
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) { document.addEventListener(n, function () { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }); });
+document.addEventListener('click', function (ev) {
+  var t = ev.target.closest('[data-action="remove-chore"]');
+  if (!t) return;
+  state.chores = state.chores.filter(function (c) { return c.id !== t.getAttribute('data-id'); });
+  store.set('chores', state.chores); closeSheet(); renderAll();
+});
+// The sheet opening over a long-pressed chore would otherwise also toggle it
+document.addEventListener('click', function (ev) { if (!el('sheet-root').hidden && ev.target.closest('[data-action="toggle-chore"]')) ev.stopPropagation(); }, true);
+
+document.addEventListener('submit', function (ev) {
+  ev.preventDefault();
+  var f = ev.target, kind = f.getAttribute('data-form');
+  if (kind === 'grocery') { addGrocery(el('g-input').value); el('g-input').value = ''; renderAll(); }
+  if (kind === 'chore') {
+    var v = el('c-input').value.trim();
+    if (v) { state.chores.push({ id: uid(), name: v, who: state.choreWho }); store.set('chores', state.chores); }
+    el('c-input').value = ''; renderAll();
+  }
+  if (kind === 'meal') {
+    var m = el('meal-input').value.trim(), key = f.getAttribute('data-key');
+    if (m) state.meals[key] = m; else delete state.meals[key];
+    store.set('meals', state.meals); closeSheet(); renderAll();
+  }
+});
+
+function loadCalendar() {
+  if (!CONFIG.calendarUrl) return Promise.resolve();
+  return fetch(CONFIG.calendarUrl).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (ev) { state.calLive = true; state.feedEvents = ev; })
+    .catch(function () {});
+}
+
+function footer() {
+  el('updated').textContent = CONFIG.place + ' · updated ' + hm(nowZ());
+  var live = state.weatherLive && state.calLive, none = !state.weatherLive && !state.calLive;
+  el('source').textContent = live ? 'Live' : none ? 'Sample data' : state.weatherLive ? 'Live weather · sample calendar' : 'Live calendar · sample weather';
+}
+
+// ---- Sports. Loaded from CONFIG.sportsUrl; this copy is the fallback until the file is reachable. Games drop off once played. ----
+var SPORTS = {
+  clt: {
+    asof: 'MLS standings through Oct 10',
+    rec: '13-8-7', pts: 46, place: '5th in the East',
+    last: 'Beat Dallas 3-2 from 2-0 down, Oct 10',
+    leaders: 'Pep Biel 12 goals, 8 assists · Idan Toklomati 11 goals',
+    form: 0.5, homeAdv: 1.12, leagueGoals: 3.21,
+    season: { gf: 50, ga: 40, gp: 28 }, post: { gf: 26, ga: 17, gp: 13 },
+    games: [
+      { at: '2026-10-14T19:30', opp: 'Columbus', home: false, gf: 41, ga: 46, gp: 28 },
+      { at: '2026-10-17T14:30', opp: 'Philadelphia', home: false, gf: 56, ga: 45, gp: 28 },
+      { at: '2026-10-24T22:30', opp: 'Portland', home: false, gf: 51, ga: 54, gp: 28 },
+      { at: '2026-10-28T19:30', opp: 'Montréal', home: true, gf: 35, ga: 56, gp: 28 },
+      { at: '2026-10-31T13:00', opp: 'Orlando', home: true, gf: 51, ga: 66, gp: 28 },
+      { at: '2026-11-07T16:00', opp: 'Inter Miami', home: false, gf: 68, ga: 50, gp: 28 }
+    ],
+    table: [['Nashville', 63], ['Inter Miami', 49], ['Chicago', 48], ['New England', 46], ['Charlotte', 46]]
+  },
+  chk: {
+    asof: 'AHL stats through Oct 12',
+    rec: '2-2-0', pts: 4, place: '5th in the Atlantic',
+    last: 'Won 2-1 in a shootout, Oct 11',
+    leaders: 'Nate Smith 3 goals · Jack Devine 2 goals, 1 assist',
+    games: [
+      { at: '2026-10-16', opp: 'Hartford', home: true, pick: 'Checkers win 4-2', why: 'Hartford has lost two straight and allowed 16 goals in 5 games. Home opener.' },
+      { at: '2026-10-17', opp: 'Hartford', home: true, pick: 'Hartford wins 3-2 in OT', why: 'Second game of a back-to-back, likely with the backup goalie.' },
+      { at: '2026-10-23', opp: 'Springfield', home: true, pick: 'Checkers win 3-2', why: 'Springfield scores about 2 a game, and Charlotte just beat them.' },
+      { at: '2026-10-24', opp: 'Springfield', home: true, pick: null },
+      { at: '2026-10-27', opp: 'Colorado', home: false, pick: null }
+    ],
+    // AHL ranks by points percentage
+    table: [['Hershey', '.750'], ['Wilkes-Barre/Scranton', '.625'], ['Springfield', '.625'], ['Hartford', '.600'], ['Charlotte', '.500'], ['Providence', '.200'], ['Lehigh Valley', '.167']]
+  }
+};
+
+// Charlotte FC odds: the same Poisson model as the Stretch Run board, with its default settings
+function poisson(l) { var p = [Math.exp(-l)]; for (var k = 1; k <= 14; k++) p.push(p[k - 1] * l / k); return p; }
+function cltOdds(g) {
+  var c = SPORTS.clt, L = c.leagueGoals / 2, f = c.form;
+  var att = (1 - f) * (c.season.gf / c.season.gp / L) + f * (c.post.gf / c.post.gp / L);
+  var def = (1 - f) * (c.season.ga / c.season.gp / L) + f * (c.post.ga / c.post.gp / L);
+  var h = g.home ? c.homeAdv : 1 / c.homeAdv;
+  var us = L * att * (g.ga / g.gp / L) * h, them = L * (g.gf / g.gp / L) * def / h;
+  var pa = poisson(us), pb = poisson(them), w = 0, d = 0, l = 0;
+  for (var i = 0; i < pa.length; i++) for (var j = 0; j < pb.length; j++) { var p = pa[i] * pb[j]; if (i > j) w += p; else if (i === j) d += p; else l += p; }
+  var t = w + d + l;
+  return { w: w / t, d: d / t, l: l / t };
+}
+function pc(x) { return Math.round(x * 100) + '%'; }
+function gameDay(s) { var d = parseWall(s); return DAYS[d.getDay()].slice(0, 3) + ', ' + MONTHS[d.getMonth()].slice(0, 3) + ' ' + d.getDate(); }
+function upcomingGames(list) {
+  var cut = nowZ(); cut.setHours(cut.getHours() - 3); // keep a game up while it's being played
+  return list.filter(function (g) { var d = parseWall(g.at); if (g.at.length === 10) d.setHours(23, 59); return d > cut; });
+}
+function tableRows(rows, us) {
+  return '<div class="mini-rows table-rows">' + rows.map(function (r, i) {
+    return '<div class="mini-row' + (r[0] === us ? ' us' : '') + '"><span class="d">' + (i + 1) + '</span><span class="o">' + esc(r[0]) + '</span><span class="r">' + r[1] + '</span></div>';
+  }).join('') + '</div>';
+}
+
+function renderSports() {
+  var c = SPORTS.clt, cg = upcomingGames(c.games), html;
+  html = '<div class="team-h"><h2>Charlotte FC</h2><span class="rec">' + c.rec + '</span></div>' +
+    '<div class="team-sub">' + c.pts + ' pts · ' + c.place + ' · ' + esc(c.last) + '</div>';
+  if (cg.length) {
+    var g = cg[0], o = cltOdds(g), d = parseWall(g.at);
+    html += '<div class="game"><div class="when">Next · ' + gameDay(g.at) + ' · ' + hm(d) + '</div>' +
+      '<div class="vs">' + (g.home ? 'vs ' : 'at ') + esc(g.opp) + ' <small>' + (g.home ? 'Bank of America Stadium' : 'away') + '</small></div>' +
+      '<div class="wdl"><div class="w" style="flex-basis:' + o.w * 100 + '%">' + pc(o.w) + '</div><div class="d" style="flex-basis:' + o.d * 100 + '%">' + pc(o.d) + '</div><div class="l" style="flex-basis:' + o.l * 100 + '%">' + pc(o.l) + '</div></div>' +
+      '<div class="wdl-key"><span>Win</span><span>Draw</span><span>Loss</span></div></div>';
+    html += '<div class="mini-rows">' + cg.slice(1, 4).map(function (g) {
+      var o = cltOdds(g);
+      return '<div class="mini-row"><span class="d">' + gameDay(g.at).slice(5) + '</span><span class="o">' + (g.home ? 'vs ' : 'at ') + esc(g.opp) + '</span><span class="r">Win ' + pc(o.w) + '</span></div>';
+    }).join('') + '</div>';
+  } else html += '<div class="game"><div class="vs">Regular season over</div></div>';
+  html += '<div class="eyebrow">East top 5 · points</div>' + tableRows(c.table, 'Charlotte') +
+    '<div class="asof">' + esc(c.leaders) + '<br>' + esc(c.asof) + '</div>';
+  el('clt').innerHTML = html;
+
+  var k = SPORTS.chk, kg = upcomingGames(k.games);
+  html = '<div class="team-h"><h2>Checkers</h2><span class="rec">' + k.rec + '</span></div>' +
+    '<div class="team-sub">' + k.pts + ' pts · ' + k.place + ' · ' + esc(k.last) + '</div>';
+  if (kg.length) {
+    var n = kg[0];
+    html += '<div class="game"><div class="when">Next · ' + gameDay(n.at) + '</div>' +
+      '<div class="vs">' + (n.home ? 'vs ' : 'at ') + esc(n.opp) + ' <small>' + (n.home ? 'Bojangles Coliseum' : 'away') + '</small></div>' +
+      (n.pick ? '<div class="pick">Pick: <b>' + esc(n.pick) + '</b></div><div class="pick-why">' + esc(n.why) + '</div>' : '<div class="pick-why">No pick yet</div>') + '</div>';
+    html += '<div class="mini-rows">' + kg.slice(1, 4).map(function (g) {
+      return '<div class="mini-row"><span class="d">' + gameDay(g.at).slice(5) + '</span><span class="o">' + (g.home ? 'vs ' : 'at ') + esc(g.opp) + '</span><span class="r">' + (g.pick ? esc(g.pick) : 'No pick yet') + '</span></div>';
+    }).join('') + '</div>';
+  }
+  html += '<div class="eyebrow">Atlantic · points %</div>' + tableRows(k.table, 'Charlotte') +
+    '<div class="asof">' + esc(k.leaders) + '<br>' + esc(k.asof) + '</div>';
+  el('chk').innerHTML = html;
+}
+
+function loadSports() {
+  if (!CONFIG.sportsUrl) return Promise.resolve();
+  return fetch(CONFIG.sportsUrl, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) {
+      if (j && j.clt) SPORTS.clt = j.clt;
+      if (j && j.chk) SPORTS.chk = j.chk;
+      if (state.tab === 'sports' && el('sheet-root').hidden) renderSports();
+    })
+    .catch(function () {});
+}
+
+tick();
+renderAll();
+loadSports();
+setInterval(loadSports, 15 * 60000);
+loadWeather().then(footer);
+loadCalendar().then(function () { renderAll(); footer(); });
+setInterval(tick, 15000);
+setInterval(function () { loadWeather().then(footer); }, CONFIG.weatherEveryMin * 60000);
+setInterval(function () { loadCalendar().then(function () { if (el('sheet-root').hidden) renderAll(); footer(); }); }, CONFIG.calendarEveryMin * 60000);
+setInterval(function () { if (el('sheet-root').hidden && state.tab !== 'groceries' && state.tab !== 'chores') renderAll(); }, 60000);
+// Reload once a night to clear any memory creep on the 1 GB frame
+setInterval(function () { var d = nowZ(); if (d.getHours() === 3 && d.getMinutes() < 1 && state.tab === 'home') location.reload(); }, 60000);
+</script>
