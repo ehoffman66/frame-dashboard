@@ -1,14 +1,13 @@
 # sports.json: the frame's sports feed
 
 The frame's Sports tab re-reads `docs/sports.json` in this repo (served at https://ehoffman66.github.io/frame-dashboard/sports.json) every 15 minutes. If it can't load the file it keeps the copy built into the page.
-Two existing routines already refresh Erik's sports boards, so each one also writes its half of this file:
+It's rebuilt by the "Frame sports feed" routine in the Home Dashboard project, twice a day at 8:12 AM and 11:12 PM ET, just after the two routines that refresh Erik's sports boards (Charlotte FC at 7:47 AM and 10:47 PM, Checkers at 7:55 AM). Each run:
 
-| Half | Written by | Source of the numbers |
-| --- | --- | --- |
-| `clt` | "Charlotte FC dashboard refresh" routine (7:47 AM and 10:47 PM ET) | the `CLT`, `CLTP` and `FX` objects and standings table in the Charlotte FC Stretch Run page |
-| `chk` | "Checkers box scores" routine (7:55 AM ET) | the `DATA` object that `build_dashboard.py` writes into the Checkers Stats Board |
+1. Saves the current Charlotte FC Stretch Run page (https://claude.ai/artifact/AdwuPQgZTgTEi5NqfX7b1e) and Checkers Stats Board (https://claude.ai/artifact/RQHNuR36ka3DwdL73XeeSz) with the Artifact tool's `read` and `path: "index.html"`.
+2. Runs `node scripts/build-sports.js <charlotte-fc.html> <checkers.html> docs/sports.json`, which pulls the data literals out of each page's script (`CLT`, `CLTP`, `FX`, `DEF` and the standings table; `DATA`) and reshapes them.
+3. Commits `docs/sports.json` to `main` only if something other than `updated` changed.
 
-Each routine pulls the latest `main`, replaces only its own key in `docs/sports.json`, leaves the other key as it found it, sets `updated`, and commits straight to `main` with a message like "Checkers data, Oct 14". If the push is rejected because the other routine pushed first, pull and redo the edit.
+If either board changes how it stores its data, `build-sports.js` stops with an error instead of writing a half-empty file, and the frame keeps showing the last good copy.
 
 ## Format
 

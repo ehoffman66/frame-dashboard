@@ -1,11 +1,12 @@
 {
+  "updated": "2026-10-13T19:29:33.668Z",
   "clt": {
     "asof": "MLS standings through Oct 10",
     "rec": "13-8-7",
     "pts": 46,
     "place": "5th in the East",
-    "last": "Beat Dallas 3-2 from 2-0 down, Oct 10",
-    "leaders": "Pep Biel 12 goals, 8 assists · Idan Toklomati 11 goals",
+    "last": "Beat Dallas 3-2, Oct 10",
+    "leaders": "Pep Biel 12 goals, 8 assists",
     "form": 0.5,
     "homeAdv": 1.12,
     "leagueGoals": 3.21,
@@ -62,7 +63,7 @@
       },
       {
         "at": "2026-11-07T16:00",
-        "opp": "Inter Miami",
+        "opp": "Miami",
         "home": false,
         "gf": 68,
         "ga": 50,
@@ -97,7 +98,7 @@
     "rec": "2-2-0",
     "pts": 4,
     "place": "5th in the Atlantic",
-    "last": "Won 2-1 in a shootout, Oct 11",
+    "last": "Won 2-1 in OT/SO at Springfield, Oct 11",
     "leaders": "Nate Smith 3 goals · Jack Devine 2 goals, 1 assist",
     "games": [
       {
@@ -105,33 +106,35 @@
         "opp": "Hartford",
         "home": true,
         "pick": "Checkers win 4-2",
-        "why": "Hartford has lost two straight and allowed 16 goals in 5 games. Home opener."
+        "why": "Hartford started 3-0 but lost its last two and has allowed 16 goals in 5 games; home opener."
       },
       {
         "at": "2026-10-17",
         "opp": "Hartford",
         "home": true,
         "pick": "Hartford wins 3-2 in OT",
-        "why": "Second game of a back-to-back, likely with the backup goalie."
+        "why": "Second game of a back-to-back, likely backup goalie; Hartford bounces back."
       },
       {
         "at": "2026-10-23",
         "opp": "Springfield",
         "home": true,
         "pick": "Checkers win 3-2",
-        "why": "Springfield scores about 2 a game, and Charlotte just beat them."
+        "why": "Springfield scores 2 a game and Charlotte just beat them 2-1 in a shootout; home ice."
       },
       {
         "at": "2026-10-24",
         "opp": "Springfield",
         "home": true,
-        "pick": null
+        "pick": null,
+        "why": ""
       },
       {
         "at": "2026-10-27",
         "opp": "Colorado",
         "home": false,
-        "pick": null
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
@@ -164,6 +167,5 @@
         ".167"
       ]
     ]
-  },
-  "updated": "2026-10-13T19:10:00-04:00"
+  }
 }
