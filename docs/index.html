@@ -168,6 +168,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--lamp); outl
 .add-row { display: flex; gap: 10px; }
 .add-row .field { flex: 1; min-width: 0; }
 .count { font-size: 18px; color: var(--muted); }
+.g-foot { margin-top: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.g-sync { border: 0; background: none; padding: 8px 24px; font-size: 16px; color: var(--muted); text-align: left; }
+.g-sync.err { color: #e58a7a; }
+.sheet .hint { font-size: 17px; color: var(--muted); line-height: 1.4; }
 
 /* Meals */
 .meals { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; height: calc(100% - 78px); }
@@ -289,7 +293,10 @@ body.night .night-veil { opacity: .72; }
           </form>
           <div class="eyebrow">Quick add</div>
           <div class="chips" id="g-quick"></div>
-          <button class="btn quiet" data-action="clear-groceries" id="g-clear" style="margin-top:auto;align-self:flex-start"></button>
+          <div class="g-foot">
+            <button class="btn quiet" data-action="clear-groceries" id="g-clear"></button>
+            <button class="g-sync" data-action="todoist" id="g-sync"></button>
+          </div>
         </div>
       </div>
     </section>
@@ -354,6 +361,7 @@ var CONFIG = {
   clock24: false,
   calendarUrl: '',         // JSON feed of events, see README. Empty shows sample events.
   sportsUrl: 'sports.json', // written by the Charlotte FC and Checkers update routines; see README
+  groceriesProject: 'Groceries', // Todoist project the Groceries tab shows, once a token is saved on the frame (see README)
   people: ['Erik', 'Kids', 'Anyone'],
   nightStart: 22,          // dim from 10pm
   nightEnd: 6.5,           // until 6:30am
@@ -435,6 +443,7 @@ function showTab(tab) {
   el('rail-time').style.visibility = tab === 'home' ? 'hidden' : 'visible';
   if (tab !== 'calendar') state.weekOffset = 0;
   renderAll();
+  if (tab === 'groceries') pullGroceries();
 }
 var lastTouch = Date.now();
 ['pointerdown', 'keydown'].forEach(function (ev) { document.addEventListener(ev, function () { lastTouch = Date.now(); }, true); });
@@ -625,13 +634,124 @@ function renderGroceries() {
   }).join('');
   el('g-clear').textContent = 'Clear ' + done + ' checked';
   el('g-clear').disabled = !done;
+  var sync = el('g-sync');
+  sync.className = 'g-sync' + (todo.err ? ' err' : '');
+  sync.textContent = !todo.token ? 'Saved on this frame only · Connect Todoist' : todo.err ? todo.err : todo.synced ? 'Synced with Todoist at ' + hm(zt(todo.synced)) : 'Connecting to Todoist…';
 }
 function addGrocery(name) {
   name = name.trim();
   if (!name) return;
   var hit = state.groceries.filter(function (g) { return g.name.toLowerCase() === name.toLowerCase(); })[0];
-  if (hit) hit.done = false; else state.groceries.unshift({ id: uid(), name: name.charAt(0).toUpperCase() + name.slice(1), done: false });
+  if (hit) { if (hit.done) toggleGrocery(hit.id); return; }
+  var item = { id: uid(), name: name.charAt(0).toUpperCase() + name.slice(1), done: false };
+  state.groceries.unshift(item);
   store.set('groceries', state.groceries);
+  if (!todo.token) return;
+  todo.ver++;
+  findProject().then(function (pid) { return td('POST', 'tasks', { content: item.name, project_id: pid }); })
+    .then(function (t) { item.id = t.id; item.td = true; todo.err = ''; store.set('groceries', state.groceries); })
+    .catch(function (e) {
+      state.groceries = state.groceries.filter(function (g) { return g !== item; });
+      store.set('groceries', state.groceries);
+      todoFail(e, 'Couldn’t add ' + item.name + ' to Todoist');
+    })
+    .then(renderGroceryChange);
+}
+function toggleGrocery(id) {
+  var g = state.groceries.filter(function (x) { return x.id === id; })[0];
+  if (!g) return;
+  g.done = !g.done;
+  store.set('groceries', state.groceries);
+  if (!todo.token || !g.td) return;
+  todo.ver++;
+  td('POST', 'tasks/' + g.id + (g.done ? '/close' : '/reopen'))
+    .then(function () { todo.err = ''; })
+    .catch(function (e) { g.done = !g.done; store.set('groceries', state.groceries); todoFail(e, 'Couldn’t update Todoist'); })
+    .then(renderGroceryChange);
+}
+
+// ---- Groceries in Todoist. With a token saved on this frame, the list is the Todoist project named in
+// CONFIG.groceriesProject, so phones edit the same list. Without one it stays on the frame.
+// Checking an item completes it in Todoist; it stays struck through here until "Clear checked". ----
+var TD = 'https://api.todoist.com/api/v1/';
+var todo = { token: store.get('todoistToken', ''), project: store.get('todoistProject', null), synced: 0, err: '', ver: 0 };
+// The token can also arrive once in the kiosk URL as #todoist=TOKEN, so it needn't be typed on the frame
+(function () {
+  var m = location.hash.match(/todoist=([0-9a-f]{20,})/i);
+  if (!m) return;
+  setTodoToken(m[1]);
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+})();
+function setTodoToken(tok) {
+  if (tok !== todo.token) { todo.project = null; store.set('todoistProject', null); }
+  todo.token = tok; todo.synced = 0; todo.err = '';
+  store.set('todoistToken', tok);
+}
+function td(method, path, body) {
+  var h = { Authorization: 'Bearer ' + todo.token };
+  if (body) h['Content-Type'] = 'application/json';
+  return fetch(TD + path, { method: method, headers: h, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }).then(function (r) {
+    if (r.status === 401 || r.status === 403) throw new Error('auth');
+    if (r.status === 404) throw new Error('missing');
+    if (!r.ok) throw new Error('http');
+    return r.status === 204 ? null : r.json().catch(function () { return null; });
+  });
+}
+function todoFail(e, msg) {
+  todo.err = e && e.message === 'auth' ? 'Todoist didn’t accept the token · Fix' : (msg || 'Can’t reach Todoist, showing the last copy');
+}
+// Finds the project by name, or makes it, and remembers its id
+function findProject(cursor) {
+  if (todo.project) return Promise.resolve(todo.project);
+  var name = CONFIG.groceriesProject.toLowerCase();
+  return td('GET', 'projects?limit=200' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '')).then(function (j) {
+    var hit = (j.results || []).filter(function (p) { return !p.is_archived && String(p.name).toLowerCase() === name; })[0];
+    if (hit) return hit.id;
+    if (j.next_cursor) return findProject(j.next_cursor);
+    return td('POST', 'projects', { name: CONFIG.groceriesProject }).then(function (p) { return p.id; });
+  }).then(function (id) { todo.project = id; store.set('todoistProject', id); return id; });
+}
+function pullGroceries(retry) {
+  if (!todo.token) return Promise.resolve();
+  var v = todo.ver;
+  return findProject().then(function (pid) { return td('GET', 'tasks?limit=200&project_id=' + encodeURIComponent(pid)); })
+    .then(function (j) {
+      if (v !== todo.ver) return; // a tap landed while this was loading; the next pull picks it up
+      var open = (j.results || []).filter(function (t) { return !t.parent_id && !t.checked; })
+        .sort(function (a, b) { return (a.child_order || 0) - (b.child_order || 0); })
+        .map(function (t) { return { id: t.id, name: t.content, done: false, td: true }; });
+      var ids = open.map(function (t) { return t.id; });
+      var checked = state.groceries.filter(function (g) { return g.done && g.td && ids.indexOf(g.id) < 0; });
+      state.groceries = open.concat(checked);
+      store.set('groceries', state.groceries);
+      todo.synced = Date.now(); todo.err = '';
+    })
+    .catch(function (e) {
+      // The project was deleted or renamed: look it up again once
+      if (e.message === 'missing' && !retry) { todo.project = null; store.set('todoistProject', null); return pullGroceries(true); }
+      todoFail(e);
+    })
+    .then(renderGroceryChange);
+}
+function renderGroceryChange() {
+  renderBadges();
+  if (state.tab === 'groceries') renderGroceries();
+}
+function todoistSheet() {
+  if (!todo.token) {
+    openSheet('<h3>Keep the list in Todoist</h3>' +
+      '<div class="hint">Then you can add to it from the Todoist app on your phone, and checking items off here completes them there. ' +
+      'Find your token in Todoist on the web under Settings, Integrations, Developer. It stays on this frame, and the Todoist list replaces the one saved here.</div>' +
+      '<form class="add-row" data-form="todoist"><input class="field" id="td-input" placeholder="API token" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Todoist API token">' +
+      '<button class="btn primary" type="submit">Connect</button></form>' +
+      '<div class="actions"><button class="btn quiet" data-action="close-sheet">Not now</button></div>');
+    return;
+  }
+  openSheet('<h3>Todoist</h3>' +
+    '<div class="hint">' + (todo.err ? esc(todo.err.replace(/ · Fix$/, '')) + '. ' : '') + 'This list is your Todoist project “' + esc(CONFIG.groceriesProject) + '”. It refreshes every minute while this tab is open.</div>' +
+    '<div class="actions"><button class="btn danger" data-action="todoist-off">Disconnect</button>' +
+    (todo.err && /token/.test(todo.err) ? '<button class="btn quiet" data-action="todoist-new">New token</button>' : '') +
+    '<button class="btn quiet" data-action="close-sheet">Close</button><button class="btn primary" data-action="todoist-sync">Sync now</button></div>');
 }
 
 // ---- Meals ----
@@ -740,7 +860,11 @@ document.addEventListener('click', function (ev) {
       '<div class="actions"><button class="btn danger" data-action="delete-event" data-id="' + e.id + '">Delete event</button><button class="btn quiet" data-action="close-sheet">Close</button></div>');
   }
   else if (a === 'delete-event') { state.localEvents = state.localEvents.filter(function (x) { return x.id !== id; }); store.set('events', state.localEvents); closeSheet(); renderAll(); }
-  else if (a === 'toggle-grocery') { state.groceries.forEach(function (g) { if (g.id === id) g.done = !g.done; }); store.set('groceries', state.groceries); renderAll(); }
+  else if (a === 'toggle-grocery') { toggleGrocery(id); renderAll(); }
+  else if (a === 'todoist') todoistSheet();
+  else if (a === 'todoist-sync') { closeSheet(); pullGroceries(); }
+  else if (a === 'todoist-new') { todo.token = ''; todoistSheet(); todo.token = store.get('todoistToken', ''); }
+  else if (a === 'todoist-off') { setTodoToken(''); state.groceries = state.groceries.filter(function (g) { return !g.td; }); store.set('groceries', state.groceries); closeSheet(); renderAll(); }
   else if (a === 'quick-grocery') { addGrocery(t.getAttribute('data-name')); renderAll(); }
   else if (a === 'clear-groceries') { state.groceries = state.groceries.filter(function (g) { return !g.done; }); store.set('groceries', state.groceries); renderAll(); }
   else if (a === 'meal') mealSheet(+t.getAttribute('data-day'));
@@ -779,6 +903,10 @@ document.addEventListener('submit', function (ev) {
   ev.preventDefault();
   var f = ev.target, kind = f.getAttribute('data-form');
   if (kind === 'grocery') { addGrocery(el('g-input').value); el('g-input').value = ''; renderAll(); }
+  if (kind === 'todoist') {
+    var tok = el('td-input').value.replace(/\s+/g, '');
+    if (tok) { setTodoToken(tok); state.groceries = []; store.set('groceries', []); closeSheet(); renderAll(); pullGroceries(); }
+  }
   if (kind === 'chore') {
     var v = el('c-input').value.trim();
     if (v) { state.chores.push({ id: uid(), name: v, who: state.choreWho }); store.set('chores', state.chores); }
@@ -916,6 +1044,9 @@ tick();
 renderAll();
 loadSports();
 setInterval(loadSports, 15 * 60000);
+pullGroceries();
+// Every minute on the Groceries tab, every 5 minutes otherwise (for the badge)
+setInterval(function () { if (state.tab === 'groceries' || nowZ().getMinutes() % 5 === 0) pullGroceries(); }, 60000);
 loadWeather().then(footer);
 loadCalendar().then(function () { renderAll(); footer(); });
 setInterval(tick, 15000);

@@ -36,7 +36,7 @@ A tab rail on the right edge switches between six screens. After two minutes wit
 
 - **Home:** clock and date, weather now and a 5-day forecast (Open-Meteo, no API key), "Next up" with a countdown, tonight's dinner, and an agenda for today, tomorrow and later this week.
 - **Calendar:** the next 7 days in columns, with arrows to page forward. "Add event" or the + under any day opens a form: title, day, time or all day, and which calendar.
-- **Groceries:** tap to check off, type to add, or use the quick-add chips. "Clear checked" empties what's been bought.
+- **Groceries:** tap to check off, type to add, or use the quick-add chips. "Clear checked" empties what's been bought. Once connected, the list is the **Groceries** project in Todoist (see below).
 - **Meals:** dinner for each of the next 7 days. Tap a day to type one or pick from suggestions.
 - **Chores:** today's chores with who does them. Checks reset each morning; tap and hold to remove one.
 - **Sports:** Charlotte FC and the Checkers side by side: record, next game, the next three after it, and the conference table. Charlotte FC shows win/draw/loss odds from the same model as the Charlotte FC Stretch Run board; the Checkers show the picks from the Checkers Stats Board. The numbers come from `sports.json` next to the page, which the frame re-reads every 15 minutes; the two routines that refresh those boards will write it (format in [sports-feed.md](sports-feed.md)). Until the file is reachable, the page uses the copy built into `SPORTS` in the script.
@@ -44,8 +44,22 @@ A tab rail on the right edge switches between six screens. After two minutes wit
 The screen dims from 10pm to 6:30am (a touch brightens it for a minute) and reloads itself at 3am to clear memory.
 Until a calendar feed is set, it shows sample events and the corner chip on Home says so.
 
-**Where added items live:** for now, in the frame's own browser storage. That means they survive reboots but only show on the frame.
-Events added on the frame are not written back to your real calendar yet. Both need the small sync server described below.
+**Where added items live:** groceries live in Todoist once it's connected. Everything else (events, meals, chores) is in the frame's own browser storage for now, so it survives reboots but only shows on the frame.
+Events added on the frame are not written back to your real calendar yet; that needs the small server described under Calendar feed.
+
+## Groceries in Todoist
+
+The Groceries tab shows the open tasks in the Todoist project named in `CONFIG.groceriesProject` ("Groceries"; the frame creates it if it's missing).
+Add items from the Todoist app on your phone and the frame picks them up within a minute while the tab is open, or within 5 minutes otherwise.
+Checking an item on the frame completes it in Todoist, and tapping it again reopens it. "Clear checked" only tidies the frame.
+
+To connect, the frame needs your Todoist API token (Todoist on the web: Settings → Integrations → Developer). Either:
+- tap "Connect Todoist" at the bottom of the Groceries tab and paste it, or
+- pass it once in the kiosk URL, so it needn't be typed on the frame:
+  `adb shell am start -n com.wesbos.homehq/.MainActivity --es url "https://ehoffman66.github.io/frame-dashboard/#todoist=YOUR_TOKEN"`
+
+The token is saved only in the frame's browser storage, never in this repo. The page reads it from the `#` part of the URL, which browsers don't send to GitHub, then removes it from the address.
+If Todoist can't be reached, the tab keeps showing the last copy and says so at the bottom.
 
 **Typing on the frame:** adding items needs an on-screen keyboard. Some PF1007L units ship without the usual Android system screens, so check that a keyboard appears when you tap a text box. Quick-add chips and meal suggestions work without one.
 
