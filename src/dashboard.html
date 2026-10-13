@@ -352,7 +352,7 @@ var CONFIG = {
   timeZone: 'America/New_York', // clock and calendar show this zone's time, whatever the frame is set to
   units: 'fahrenheit',     // or 'celsius'
   clock24: false,
-  calendarUrl: '',         // JSON feed of events, see README. Empty shows sample events.
+  calendarUrl: '',         // the calendar Worker's URL (see README). Usually passed once as #calendar=URL instead, since it holds a secret.
   sportsUrl: 'sports.json', // written by the Charlotte FC and Checkers update routines; see README
   groceriesProject: 'Groceries', // Todoist project the Groceries tab shows, once a token is saved on the frame (see README)
   people: ['Erik', 'Kids', 'Anyone'],
@@ -405,7 +405,7 @@ var store = {
 
 var state = {
   tab: 'home', weekOffset: 0,
-  weatherLive: false, calLive: false, feedEvents: null,
+  weatherLive: false, calLive: false, feedEvents: null, calMeals: {},
   localEvents: store.get('events', []),
   groceries: store.get('groceries', [
     { id: 'g1', name: 'Milk', done: false }, { id: 'g2', name: 'Eggs', done: false },
@@ -543,7 +543,7 @@ function allEvents() {
   var feed = state.feedEvents ? state.feedEvents.map(function (e) {
     // All-day dates ("2026-10-15") are already calendar days; timed events are instants to show in Charlotte time
     var allDayStart = e.allDay && /^\d{4}-\d\d-\d\d$/.test(e.start);
-    return { title: e.title, start: allDayStart ? parseWall(e.start) : zt(e.start), end: e.end ? (allDayStart ? parseWall(e.end) : zt(e.end)) : null, allDay: e.allDay, calendar: e.calendar };
+    return { title: e.title, start: allDayStart ? parseWall(e.start) : zt(e.start), end: e.end ? (allDayStart ? parseWall(e.end) : zt(e.end)) : null, allDay: e.allDay, calendar: e.calendar, color: e.color };
   }) : sampleEvents();
   return feed.concat(state.localEvents.map(function (e) {
     return { id: e.id, local: true, title: e.title, start: parseWall(e.start), end: e.end ? parseWall(e.end) : null, allDay: e.allDay, calendar: e.calendar };
@@ -562,7 +562,7 @@ function evRow(e, now) {
   else if (!e.allDay && start <= now && end > now) cls += ' live';
   var when = e.allDay ? 'All day' : (cls.indexOf('live') > -1 ? 'Now' : hm(start));
   return '<div class="' + cls + '"><div class="when">' + when + '</div>' +
-    '<div class="dot" style="background:' + (CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"></div>' +
+    '<div class="dot" style="background:' + (e.color || CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"></div>' +
     '<div class="what">' + esc(e.title) + '</div></div>';
 }
 
@@ -578,13 +578,13 @@ function renderHome() {
   var later = events.filter(function (e) { var s = new Date(e.start); return s > at(addDays(now, 1), 23, 59) && s < addDays(now, 7); });
   if (later.length) {
     html += '<div class="group"><h2 class="eyebrow">Later this week</h2>' + later.slice(0, 2).map(function (e) {
-      return evRow({ title: e.title, start: e.start, allDay: true, calendar: e.calendar }, now).replace('All day', DAYS[new Date(e.start).getDay()].slice(0, 3));
+      return evRow({ title: e.title, start: e.start, allDay: true, calendar: e.calendar, color: e.color }, now).replace('All day', DAYS[new Date(e.start).getDay()].slice(0, 3));
     }).join('') + '</div>';
   }
   el('agenda').innerHTML = html;
 
   var timed = eventsOn(events, now).filter(function (e) { return !e.allDay && new Date(e.end || e.start) > now; });
-  var dinner = state.meals[dayKey(now)];
+  var dinner = mealOn(now);
   if (!timed.length) {
     el('next').innerHTML = '<div class="eyebrow">Next up</div><div class="ttl">' + (dinner ? 'Dinner: ' + esc(dinner) : 'Nothing else today') + '</div>';
   } else {
@@ -603,7 +603,7 @@ function renderCalendar() {
     var d = addDays(start, i), list = eventsOn(events, d), isToday = sameDay(d, nowZ());
     html += '<div class="wday' + (isToday ? ' today' : '') + '"><div class="wday-h"><span class="dn">' + (isToday ? 'Today' : DAYS[d.getDay()].slice(0, 3)) + '</span><span class="dd">' + d.getDate() + '</span></div>';
     list.slice(0, 5).forEach(function (e) {
-      html += '<button class="wev" style="border-left-color:' + (CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"' +
+      html += '<button class="wev" style="border-left-color:' + (e.color || CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"' +
         (e.local ? ' data-action="event" data-id="' + e.id + '"' : ' tabindex="-1"') + '>' +
         '<span class="t">' + (e.allDay ? 'All day' : hm(new Date(e.start))) + '</span><span class="n">' + esc(e.title) + '</span></button>';
     });
@@ -668,11 +668,15 @@ function toggleGrocery(id) {
 // Checking an item completes it in Todoist; it stays struck through here until "Clear checked". ----
 var TD = 'https://api.todoist.com/api/v1/';
 var todo = { token: store.get('todoistToken', ''), project: store.get('todoistProject', null), synced: 0, err: '', ver: 0 };
-// The token can also arrive once in the kiosk URL as #todoist=TOKEN, so it needn't be typed on the frame
+// Secrets can arrive once in the kiosk URL, as #todoist=TOKEN&calendar=URL, so nothing is typed on the frame
+// and nothing secret is in this public page. They're saved on the frame, then removed from the address.
 (function () {
-  var m = location.hash.match(/todoist=([0-9a-f]{20,})/i);
-  if (!m) return;
-  setTodoToken(m[1]);
+  if (!/(todoist|calendar)=/.test(location.hash)) return;
+  location.hash.slice(1).split('&').forEach(function (kv) {
+    var i = kv.indexOf('='), k = kv.slice(0, i), v = decodeURIComponent(kv.slice(i + 1));
+    if (k === 'todoist' && /^[0-9a-f]{20,}$/i.test(v)) setTodoToken(v);
+    if (k === 'calendar' && /^https:\/\//.test(v)) store.set('calendarUrl', v);
+  });
   try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
 })();
 function setTodoToken(tok) {
@@ -748,10 +752,17 @@ function todoistSheet() {
 }
 
 // ---- Meals ----
+// Dinner for a day: what was typed on the frame, else the Meal Plan calendar's entry
+function mealOn(d) {
+  var k = dayKey(d);
+  if (state.meals[k]) return state.meals[k];
+  var z = function (n) { return (n < 10 ? '0' : '') + n; };
+  return state.calMeals[d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate())] || '';
+}
 function renderMeals() {
   var html = '', today = nowZ();
   for (var i = 0; i < 7; i++) {
-    var d = addDays(today, i), dish = state.meals[dayKey(d)];
+    var d = addDays(today, i), dish = mealOn(d);
     html += '<button class="meal' + (i === 0 ? ' today' : '') + '" data-action="meal" data-day="' + i + '">' +
       '<span class="dn">' + (i === 0 ? 'Tonight' : DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate()) + '</span>' +
       '<span class="dish' + (dish ? '' : ' none') + '">' + (dish ? esc(dish) : 'Not planned') + '</span>' +
@@ -820,7 +831,7 @@ function syncDraft() {
 }
 
 function mealSheet(i) {
-  var d = addDays(nowZ(), i), key = dayKey(d), cur = state.meals[key] || '';
+  var d = addDays(nowZ(), i), key = dayKey(d), cur = mealOn(d) || '';
   openSheet('<h3>Dinner ' + (i === 0 ? 'tonight' : 'on ' + DAYS[d.getDay()]) + '</h3>' +
     '<form class="add-row" data-form="meal" data-key="' + key + '"><input class="field" id="meal-input" value="' + esc(cur) + '" placeholder="What are we having?" autocomplete="off" aria-label="Dinner"><button class="btn primary" type="submit">Save</button></form>' +
     '<div class="chips">' + MEAL_IDEAS.map(function (m) { return '<button class="chip-btn" data-action="meal-idea" data-key="' + key + '" data-name="' + m + '">' + m + '</button>'; }).join('') + '</div>' +
@@ -913,9 +924,17 @@ document.addEventListener('submit', function (ev) {
 });
 
 function loadCalendar() {
-  if (!CONFIG.calendarUrl) return Promise.resolve();
-  return fetch(CONFIG.calendarUrl).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function (ev) { state.calLive = true; state.feedEvents = ev; })
+  var url = store.get('calendarUrl', '') || CONFIG.calendarUrl;
+  if (!url) return Promise.resolve();
+  return fetch(url, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) {
+      // The Worker sends { events, meals }; a plain list of events works too
+      state.calLive = true;
+      state.feedEvents = Array.isArray(j) ? j : j.events || [];
+      state.calMeals = (j && j.meals) || {};
+      // Drop the sample dinners once real ones arrive, unless dinners were typed on the frame
+      if (!store.get('meals', null) && Object.keys(state.calMeals).length) state.meals = {};
+    })
     .catch(function () {});
 }
 

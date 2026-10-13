@@ -1,0 +1,40 @@
+# Calendar Worker
+
+A small Cloudflare Worker that reads your Google calendars' private iCal links and gives the frame the next six weeks of events, with repeating events expanded and times in Charlotte time.
+It also fills the Meals tab from the Meal Plan calendar. Results are cached for 5 minutes; the frame asks every 10.
+
+The code is [`calendar.js`](calendar.js). It needs no build step and fits Cloudflare's free plan.
+
+## Set it up (about 10 minutes)
+
+1. **Get each calendar's secret iCal address.** In Google Calendar on a computer: Settings (gear) → under *Settings for my calendars* click the calendar → *Integrate calendar* → copy **Secret address in iCal format**.
+   Do this for Family, your own calendar (erik.m.hoffman@gmail.com), Alex & Erik Nomad Calendar, and Meal Plan.
+   Treat these like passwords: anyone with one can read that calendar.
+2. **Make the Worker.** Sign up free at <https://dash.cloudflare.com>, then *Workers & Pages* → *Create* → *Create Worker*. Name it `frame-calendar` and click *Deploy*.
+3. **Paste the code.** Click *Edit code*, replace everything with the contents of [`calendar.js`](calendar.js), and click *Deploy*.
+4. **Add two secrets.** Go to the Worker's *Settings* → *Variables and Secrets* → *Add*, type **Secret**:
+   - `KEY`: any long random string, for example 30+ letters and numbers from a password manager.
+   - `FEEDS`: this list, with your four secret addresses pasted in:
+     ```json
+     [
+       {"name": "family",   "color": "#f0b35e", "url": "PASTE Family address"},
+       {"name": "erik",     "color": "#72b4da", "url": "PASTE your own address"},
+       {"name": "nomad",    "color": "#a9c98a", "url": "PASTE Nomad address"},
+       {"name": "holidays", "color": "#c9a0dc", "url": "https://calendar.google.com/calendar/ical/en.usa%23holiday%40group.v.calendar.google.com/public/basic.ics"},
+       {"name": "meals",    "meals": true,      "url": "PASTE Meal Plan address"}
+     ]
+     ```
+   Leave out a line to hide that calendar. Add more lines the same way.
+5. **Check it.** Open `https://frame-calendar.<your-subdomain>.workers.dev/<KEY>` in a browser. You should see JSON with your events. If a calendar's address is wrong, it's listed under `errors`. Any other path returns "Not found".
+6. **Point the frame at it.** Add it to the kiosk URL along with the Todoist token:
+   ```
+   adb shell am start -n com.wesbos.homehq/.MainActivity --es url "https://ehoffman66.github.io/frame-dashboard/#todoist=YOUR_TOKEN&calendar=https://frame-calendar.<your-subdomain>.workers.dev/<KEY>"
+   ```
+   The frame saves both, then removes them from the address. The "Sample data" chip on Home changes to "Live" once both weather and calendar load.
+
+## Notes
+
+- Dinners typed on the frame win over the Meal Plan calendar for that day. Clear the frame's entry to go back to the calendar.
+- Events added on the frame still stay on the frame; they are not written to Google Calendar.
+- Google can take a few hours to reflect changes in its iCal links. This is a Google limit, not the Worker's.
+- Test the date maths with `node worker/test/expand.test.mjs`.

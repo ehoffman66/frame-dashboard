@@ -42,7 +42,6 @@ A tab rail on the right edge switches between six screens. After two minutes wit
 - **Sports:** Charlotte FC and the Checkers side by side: record, next game, the next three after it, and the conference table. Charlotte FC shows win/draw/loss odds from the same model as the Charlotte FC Stretch Run board; the Checkers show the picks from the Checkers Stats Board. The numbers come from `sports.json` next to the page, which the frame re-reads every 15 minutes; the two routines that refresh those boards will write it (format in [sports-feed.md](sports-feed.md)). Until the file is reachable, the page uses the copy built into `SPORTS` in the script.
 
 The screen dims from 10pm to 6:30am (a touch brightens it for a minute) and reloads itself at 3am to clear memory.
-Until a calendar feed is set, it shows sample events and the corner chip on Home says so.
 
 **Where added items live:** groceries live in Todoist once it's connected. Everything else (events, meals, chores) is in the frame's own browser storage for now, so it survives reboots but only shows on the frame.
 Events added on the frame are not written back to your real calendar yet; that needs the small server described under Calendar feed.
@@ -70,18 +69,17 @@ the calendar feed URL, and the night hours. Then run `sh build.sh` to produce `d
 
 ## Calendar feed
 
-The page reads JSON from `CONFIG.calendarUrl`:
+The Calendar tab, Home's agenda and the Meals tab read from a small Cloudflare Worker that turns your Google calendars' private iCal links into JSON.
+Setup steps are in [worker/README.md](worker/README.md). The Worker's URL holds a secret, so it's passed to the frame once in the kiosk URL (`#calendar=...`) rather than written into this public page.
+Until it's connected, the page shows sample events and the corner chip on Home says so.
 
-Timed events need a full timestamp with offset; all-day events can use a plain date like `"2026-10-15"`.
+Any URL returning this JSON also works, set as `CONFIG.calendarUrl`:
 
 ```json
-[{ "title": "Soccer practice", "start": "2026-10-15T16:30:00-04:00", "end": "2026-10-15T18:00:00-04:00", "allDay": false, "calendar": "school" }]
+{ "events": [{ "title": "Soccer practice", "start": "2026-10-15T20:30:00Z", "end": "2026-10-15T22:00:00Z", "allDay": false, "calendar": "family", "color": "#f0b35e" },
+             { "title": "Picture day", "start": "2026-10-16", "allDay": true, "calendar": "family" }],
+  "meals": { "2026-10-15": "Tacos" } }
 ```
-
-`calendar` picks the color (`family`, `school`, `work`, anything else). Calendar sites don't let a
-browser page read their feeds directly, so this needs a small server-side piece that fetches the
-private iCal link, expands repeating events, and returns this JSON. A Cloudflare Worker is the
-simplest fit and is what Wes uses for hosting.
 
 ## Day one checklist
 
@@ -92,6 +90,6 @@ simplest fit and is what Wes uses for hosting.
 3. Use a **USB-A to USB-C data cable**. USB-C to USB-C gives the PF1007L no power or data.
 4. Install the Android platform tools on your computer (`adb`), plug in, run `adb devices`.
 5. Back up before any write, then follow the guide through WebView 106 and the kiosk app.
-6. Point the kiosk at the hosted dashboard:
-   `adb shell am start -n com.wesbos.homehq/.MainActivity --es url https://<your-dashboard>/`
+6. Point the kiosk at the dashboard, with the Todoist token and calendar Worker URL in the `#` part:
+   `adb shell am start -n com.wesbos.homehq/.MainActivity --es url "https://ehoffman66.github.io/frame-dashboard/#todoist=YOUR_TOKEN&calendar=https://frame-calendar.<your-subdomain>.workers.dev/<KEY>"`
 7. Touch on the PF1007L may merge two fingers into one, so the kiosk's two-finger menu may not open. Keep ADB available as the way back in.
