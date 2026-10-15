@@ -83,6 +83,7 @@ Any URL returning this JSON also works, set as `CONFIG.calendarUrl`:
 
 ## Day one checklist
 
+0. **Got a PF1006?** Start with [setup-pf1006.md](setup-pf1006.md); Wes's guides don't cover it yet.
 1. **Don't put the frame on Wi-Fi yet.** On the PF1007L the stock app gives the vendor's server a root shell. Read `docs/aimor-remote-root-shell.md` in Wes's repo first.
 2. Settings → About: note the model and firmware string. That picks the guide:
    - `rk312x`: `docs/biuframe-setup-guide.md`
