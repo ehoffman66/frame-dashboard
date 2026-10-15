@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-15T03:13:19.574Z",
+  "updated": "2026-10-15T12:13:34.460Z",
   "clt": {
     "asof": "MLS standings through Oct 14",
     "rec": "13-9-7",
@@ -34,8 +34,8 @@
         "opp": "Portland",
         "home": false,
         "gf": 51,
-        "ga": 54,
-        "gp": 28
+        "ga": 56,
+        "gp": 29
       },
       {
         "at": "2026-10-28T19:30",
