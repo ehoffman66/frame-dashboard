@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-15T12:13:34.460Z",
+  "updated": "2026-10-17T03:13:15.343Z",
   "clt": {
     "asof": "MLS standings through Oct 14",
     "rec": "13-9-7",
@@ -86,43 +86,43 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Oct 12",
-    "rec": "2-2-0",
-    "pts": 4,
-    "place": "5th in the Atlantic",
-    "last": "Won 2-1 in OT/SO at Springfield, Oct 11",
+    "asof": "AHL stats through Oct 17",
+    "rec": "3-2-0",
+    "pts": 6,
+    "place": "2nd in the Atlantic",
+    "last": "Won 2-1 vs Hartford, Oct 16",
     "leaders": "Nate Smith 3 goals · Jack Devine 2 goals, 1 assist",
     "games": [
-      {
-        "at": "2026-10-16",
-        "opp": "Hartford",
-        "home": true,
-        "pick": "Checkers win 4-2",
-        "why": "Hartford started 3-0 but lost its last two and has allowed 16 goals in 5 games; home opener."
-      },
       {
         "at": "2026-10-17",
         "opp": "Hartford",
         "home": true,
-        "pick": "Hartford wins 3-2 in OT",
-        "why": "Second game of a back-to-back, likely backup goalie; Hartford bounces back."
+        "pick": "Checkers win 3-2",
+        "why": "Hartford has lost 4 straight and allowed 22 goals in 7 games; Charlotte has given up 1 goal in each of its last two."
       },
       {
         "at": "2026-10-23",
         "opp": "Springfield",
         "home": true,
         "pick": "Checkers win 3-2",
-        "why": "Springfield scores 2 a game and Charlotte just beat them 2-1 in a shootout; home ice."
+        "why": "Springfield is winless in 3 and scores 2.2 a game; home ice and a week of rest."
       },
       {
         "at": "2026-10-24",
         "opp": "Springfield",
         "home": true,
-        "pick": null,
-        "why": ""
+        "pick": "Springfield wins 3-2 in OT",
+        "why": "Second game of a back-to-back; Charlotte beat them 2-1 in a shootout, so expect another one-goal game that goes the other way."
       },
       {
         "at": "2026-10-27",
+        "opp": "Colorado",
+        "home": false,
+        "pick": "Colorado wins 4-2",
+        "why": "Colorado is 3-1 and scores 4.5 a game; long trip west for Charlotte."
+      },
+      {
+        "at": "2026-10-28",
         "opp": "Colorado",
         "home": false,
         "pick": null,
@@ -135,28 +135,28 @@
         ".750"
       ],
       [
-        "Wilkes-Barre/Scranton",
-        ".625"
-      ],
-      [
-        "Springfield",
-        ".625"
-      ],
-      [
-        "Hartford",
+        "Charlotte",
         ".600"
       ],
       [
-        "Charlotte",
+        "Wilkes-Barre/Scranton",
         ".500"
+      ],
+      [
+        "Lehigh Valley",
+        ".500"
+      ],
+      [
+        "Springfield",
+        ".500"
+      ],
+      [
+        "Hartford",
+        ".429"
       ],
       [
         "Providence",
         ".200"
-      ],
-      [
-        "Lehigh Valley",
-        ".167"
       ]
     ]
   }
