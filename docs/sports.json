@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-18T03:13:14.221Z",
+  "updated": "2026-10-18T12:13:14.832Z",
   "clt": {
     "asof": "MLS standings through Oct 17",
     "rec": "13-9-8",
@@ -27,15 +27,15 @@
         "home": false,
         "gf": 51,
         "ga": 56,
-        "gp": 29
+        "gp": 30
       },
       {
         "at": "2026-10-28T19:30",
         "opp": "Montréal",
         "home": true,
-        "gf": 35,
-        "ga": 59,
-        "gp": 29
+        "gf": 36,
+        "ga": 60,
+        "gp": 30
       },
       {
         "at": "2026-10-31T13:00",
@@ -57,7 +57,7 @@
     "table": [
       [
         "Nashville",
-        66
+        67
       ],
       [
         "Inter Miami",
