@@ -371,12 +371,16 @@ body.night .night-veil { opacity: .72; }
 
 <script>
 // Scale the 1280x800 panel to the screen, so it fills a 1920x1200 tablet the same as an 800px frame.
+// Only ever shrinks: the tablet is already 1280x800, and a size read mid-boot once zoomed it in and cut off the edges.
 function fitPanel() {
-  var app = document.querySelector('.app');
-  app.style.zoom = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
+  var app = document.querySelector('.app'), d = document.documentElement;
+  var w = Math.min(window.innerWidth, d.clientWidth || Infinity), h = Math.min(window.innerHeight, d.clientHeight || Infinity);
+  app.style.zoom = Math.min(1, w / 1280, h / 800);
 }
 fitPanel();
-window.addEventListener('resize', fitPanel);
+['resize', 'orientationchange', 'load'].forEach(function (ev) { window.addEventListener(ev, fitPanel); });
+document.addEventListener('visibilitychange', fitPanel);
+setTimeout(fitPanel, 2000);
 
 // ---- Settings: edit these, then reload the frame ----
 var CONFIG = {
