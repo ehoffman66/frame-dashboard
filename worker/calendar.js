@@ -11,6 +11,11 @@
 // Response: { updated, events: [{ title, start, end, allDay, calendar, color, location?, notes?, link? }], meals: { "2026-10-15": "Tacos" } }
 // link opens the event in Google Calendar (Google feeds only), so it can be edited on a phone.
 // Timed events are UTC instants ("...Z"); all-day events are plain dates, one entry per day they cover.
+//
+// Spotify (optional, for the Music tab): three more secrets, set up as described in the README
+//   SPOTIFY_ID, SPOTIFY_SECRET   from your app at developer.spotify.com
+//   SPOTIFY_REFRESH              shown once by https://<worker>.workers.dev/<KEY>/spotify/login after you sign in
+// The frame then calls https://<worker>.workers.dev/<KEY>/spotify/... and never sees a Spotify login.
 
 const DAY = 86400000;
 const CACHE_SEC = 300;
@@ -18,8 +23,10 @@ const CACHE_SEC = 300;
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET', 'Cache-Control': 'no-store' };
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Cache-Control': 'no-store' };
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
+    if (env.KEY && url.pathname === '/spotify/callback') return spotifyCallback(url, env);
+    if (env.KEY && url.pathname.startsWith('/' + env.KEY + '/spotify/')) return spotify(request, url, env, cors);
     if (!env.KEY || url.pathname !== '/' + env.KEY) return new Response('Not found', { status: 404, headers: cors });
 
     const cache = caches.default, cacheKey = new Request(url.origin + url.pathname);
@@ -65,6 +72,108 @@ export default {
 
 function json(o, status, headers) {
   return new Response(JSON.stringify(o), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
+}
+
+// ---------- Spotify ----------
+
+const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-library-read';
+
+function redirectUri(url) { return url.origin + '/spotify/callback'; }
+async function sha(s) { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map(b => b.toString(16).padStart(2, '0')).join(''); }
+function page(body, status) {
+  return new Response('<!doctype html><meta name="viewport" content="width=device-width"><body style="font:17px system-ui;max-width:640px;margin:40px auto;padding:0 16px">' + body,
+    { status: status || 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+async function spotifyToken(env) {
+  if (globalThis.spToken && globalThis.spToken.exp > Date.now()) return globalThis.spToken.value;
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { Authorization: 'Basic ' + btoa(env.SPOTIFY_ID + ':' + env.SPOTIFY_SECRET), 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: env.SPOTIFY_REFRESH })
+  });
+  if (!r.ok) throw new Error('Spotify login failed (' + r.status + '); sign in again at /<KEY>/spotify/login');
+  const j = await r.json();
+  globalThis.spToken = { value: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  return j.access_token;
+}
+
+async function sp(env, method, path, body) {
+  const r = await fetch('https://api.spotify.com/v1' + path, {
+    method, headers: { Authorization: 'Bearer ' + await spotifyToken(env), 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (r.status === 204 || r.status === 202) return null;
+  const text = await r.text(), j = text ? JSON.parse(text) : null;
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Spotify error ' + r.status);
+  return j;
+}
+
+function slimTrack(item) {
+  if (!item) return null;
+  const imgs = (item.album || item.show || {}).images || item.images || [];
+  return { name: item.name, by: (item.artists || []).map(a => a.name).join(', ') || (item.show && item.show.name) || '',
+    album: item.album ? item.album.name : '', art: imgs.length ? imgs[0].url : '', ms: item.duration_ms };
+}
+function slimList(p) { return p && { name: p.name, uri: p.uri, art: p.images && p.images.length ? p.images[p.images.length > 1 ? 1 : 0].url : '', by: p.owner ? p.owner.display_name : (p.artists || []).map(a => a.name).join(', ') }; }
+
+// /<KEY>/spotify/login and /spotify/callback: the one-time sign-in that produces SPOTIFY_REFRESH
+async function spotifyCallback(url, env) {
+  if (url.searchParams.get('state') !== await sha('frame-spotify:' + env.KEY)) return page('This sign-in link has expired. Start again from your /spotify/login address.', 400);
+  if (url.searchParams.get('error')) return page('Spotify said: ' + url.searchParams.get('error').replace(/[<&]/g, ''), 400);
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { Authorization: 'Basic ' + btoa(env.SPOTIFY_ID + ':' + env.SPOTIFY_SECRET), 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'authorization_code', code: url.searchParams.get('code') || '', redirect_uri: redirectUri(url) })
+  });
+  const j = await r.json();
+  if (!r.ok || !j.refresh_token) return page('Spotify didn\'t accept the sign-in (' + String(j.error_description || j.error || r.status).replace(/[<&]/g, '') + '). Check SPOTIFY_ID and SPOTIFY_SECRET.', 400);
+  return page('<h2>Signed in to Spotify</h2><p>Copy this value, then in Cloudflare add a Secret named <b>SPOTIFY_REFRESH</b> with it and click Deploy. Keep it private: it controls your Spotify account.</p>' +
+    '<textarea readonly onclick="this.select()" style="width:100%;height:120px;font:14px monospace">' + j.refresh_token + '</textarea>');
+}
+
+async function spotify(request, url, env, cors) {
+  const action = url.pathname.slice(env.KEY.length + 10); // after /<KEY>/spotify/
+  if (action === 'login') {
+    if (!env.SPOTIFY_ID || !env.SPOTIFY_SECRET) return page('Add the SPOTIFY_ID and SPOTIFY_SECRET secrets first, then reload this page.', 400);
+    return Response.redirect('https://accounts.spotify.com/authorize?' + new URLSearchParams({
+      response_type: 'code', client_id: env.SPOTIFY_ID, scope: SCOPES, redirect_uri: redirectUri(url), state: await sha('frame-spotify:' + env.KEY)
+    }), 302);
+  }
+  if (!env.SPOTIFY_ID || !env.SPOTIFY_SECRET || !env.SPOTIFY_REFRESH) return json({ error: 'setup', message: 'Spotify isn\'t set up in the Worker yet' }, 200, cors);
+  try {
+    const body = request.method === 'POST' ? await request.json().catch(() => ({})) : {};
+    const dev = body.device ? '?device_id=' + encodeURIComponent(body.device) : '';
+    switch (action) {
+      case 'state': {
+        const [p, d] = await Promise.all([sp(env, 'GET', '/me/player?additional_types=episode'), sp(env, 'GET', '/me/player/devices')]);
+        return json({
+          playing: !!(p && p.is_playing), track: slimTrack(p && p.item), progress: p ? p.progress_ms : 0,
+          shuffle: !!(p && p.shuffle_state), device: p && p.device ? p.device.id : null,
+          devices: ((d && d.devices) || []).map(x => ({ id: x.id, name: x.name, type: x.type, active: x.is_active, volume: x.volume_percent, canVolume: x.supports_volume !== false }))
+        }, 200, cors);
+      }
+      case 'playlists': {
+        const j = await sp(env, 'GET', '/me/playlists?limit=50');
+        return json({ items: (j.items || []).filter(Boolean).map(slimList) }, 200, cors);
+      }
+      case 'search': {
+        const j = await sp(env, 'GET', '/search?type=playlist,album,artist&limit=8&q=' + encodeURIComponent(url.searchParams.get('q') || ''));
+        const all = [].concat((j.playlists && j.playlists.items) || [], (j.albums && j.albums.items) || [], (j.artists && j.artists.items) || []);
+        return json({ items: all.filter(Boolean).map(slimList) }, 200, cors);
+      }
+      case 'play': return json(await sp(env, 'PUT', '/me/player/play' + dev, body.uri ? { context_uri: body.uri } : undefined) || {}, 200, cors);
+      case 'pause': return json(await sp(env, 'PUT', '/me/player/pause' + dev) || {}, 200, cors);
+      case 'next': return json(await sp(env, 'POST', '/me/player/next' + dev) || {}, 200, cors);
+      case 'previous': return json(await sp(env, 'POST', '/me/player/previous' + dev) || {}, 200, cors);
+      case 'volume': return json(await sp(env, 'PUT', '/me/player/volume?volume_percent=' + Math.max(0, Math.min(100, Math.round(+body.percent || 0))) + (body.device ? '&device_id=' + encodeURIComponent(body.device) : '')) || {}, 200, cors);
+      case 'shuffle': return json(await sp(env, 'PUT', '/me/player/shuffle?state=' + (body.on ? 'true' : 'false')) || {}, 200, cors);
+      case 'transfer': return json(await sp(env, 'PUT', '/me/player', { device_ids: [body.device], play: !!body.play }) || {}, 200, cors);
+    }
+    return json({ error: 'unknown' }, 404, cors);
+  } catch (e) {
+    return json({ error: 'spotify', message: String(e.message || e) }, 200, cors);
+  }
 }
 
 // ---------- iCal ----------
