@@ -21,6 +21,7 @@
 }
 [hidden] { display: none !important; }
 html, body { height: 100%; }
+html { overflow: hidden; }
 body {
   margin: 0;
   background: var(--bg);
@@ -372,9 +373,13 @@ body.night .night-veil { opacity: .72; }
 <script>
 // Scale the 1280x800 panel to the screen, so it fills a 1920x1200 tablet the same as an 800px frame.
 // Only ever shrinks: the tablet is already 1280x800, and a size read mid-boot once zoomed it in and cut off the edges.
+// Measures the visible area (Android's web view can report a wider layout viewport than the screen) and pins
+// the page to it, so the panel is centred on what's actually shown.
 function fitPanel() {
-  var app = document.querySelector('.app'), d = document.documentElement;
-  var w = Math.min(window.innerWidth, d.clientWidth || Infinity), h = Math.min(window.innerHeight, d.clientHeight || Infinity);
+  var app = document.querySelector('.app'), d = document.documentElement, vv = window.visualViewport;
+  var w = Math.min(vv ? vv.width * vv.scale : innerWidth, innerWidth, d.clientWidth || Infinity, screen.width || Infinity);
+  var h = Math.min(vv ? vv.height * vv.scale : innerHeight, innerHeight, d.clientHeight || Infinity, screen.height || Infinity);
+  document.body.style.width = w + 'px'; document.body.style.height = h + 'px';
   app.style.zoom = Math.min(1, w / 1280, h / 800);
 }
 fitPanel();
