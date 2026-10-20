@@ -55,6 +55,7 @@ body { display: flex; align-items: center; justify-content: center; }
   flex: none;
   display: grid;
   grid-template-columns: 1fr 104px;
+  grid-template-rows: minmax(0, 1fr); /* keeps tall tabs (Music) inside 800px so their lists scroll */
 }
 .view { box-sizing: border-box; height: 100%; min-width: 0; min-height: 0; padding: 36px 40px 28px 44px; }
 .view.frame { padding: 0; }
@@ -230,7 +231,7 @@ body { display: flex; align-items: center; justify-content: center; }
 .asof { font-size: 13px; color: var(--muted); margin-top: auto; }
 
 /* Music (Spotify, played on the Sonos speakers) */
-.music { display: grid; grid-template-columns: 380px 1fr; gap: 40px; height: 100%; }
+.music { display: grid; grid-template-columns: 380px 1fr; grid-template-rows: minmax(0, 1fr); gap: 40px; height: 100%; }
 .np { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
 .np-art { width: 360px; height: 360px; border-radius: 18px; background: var(--panel) center/cover no-repeat; flex: none; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .np-art svg { width: 80px; height: 80px; opacity: .5; }
@@ -248,7 +249,7 @@ body { display: flex; align-items: center; justify-content: center; }
 .lib { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; }
 .lib-h { display: flex; gap: 10px; align-items: center; }
 .lib-h .add-row { flex: 1; }
-.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; align-content: start; }
+.tiles { flex: 1 1 auto; touch-action: pan-y; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; align-content: start; }
 .tile { border: 0; background: none; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .tile i { display: block; width: 100%; aspect-ratio: 1; border-radius: 12px; background: var(--panel) center/cover no-repeat; }
 .tile b { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -288,7 +289,7 @@ body.night .night-veil { opacity: .72; }
 @media (max-width: 760px) {
   body { overflow: auto; font-size: 16px; }
   .sports { grid-template-columns: 1fr; height: auto; }
-  .app { grid-template-columns: 1fr; max-height: none; height: auto; padding-bottom: 84px; }
+  .app { grid-template-columns: 1fr; grid-template-rows: auto; max-height: none; height: auto; padding-bottom: 84px; }
   .view { height: auto; padding: 24px 16px; }
   .rail { position: fixed; left: 0; right: 0; bottom: 0; flex-direction: row; padding: 0 0 env(safe-area-inset-bottom, 0px); border-left: 0; border-top: 1px solid var(--line); z-index: 5; }
   .rail-time, .rail .spacer, .rail-batt { display: none; }
