@@ -8,7 +8,8 @@
 //          A feed with "meals": true fills the frame's Meals tab instead of the calendar.
 //   TZ     optional, defaults to America/New_York; the zone for floating times and for which day a dinner falls on
 //
-// Response: { updated, events: [{ title, start, end, allDay, calendar, color }], meals: { "2026-10-15": "Tacos" } }
+// Response: { updated, events: [{ title, start, end, allDay, calendar, color, location?, notes?, link? }], meals: { "2026-10-15": "Tacos" } }
+// link opens the event in Google Calendar (Google feeds only), so it can be edited on a phone.
 // Timed events are UTC instants ("...Z"); all-day events are plain dates, one entry per day they cover.
 
 const DAY = 86400000;
@@ -35,7 +36,7 @@ export default {
       try {
         const r = await fetch(f.url, { cf: { cacheTtl: CACHE_SEC } });
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        return { feed: f, events: expand(await r.text(), from, to, tz) };
+        return { feed: f, events: expand(await r.text(), from, to, tz, googleCalendarId(f.url)) };
       } catch (e) {
         return { feed: f, error: String(e.message || e) };
       }
@@ -69,7 +70,7 @@ function json(o, status, headers) {
 // ---------- iCal ----------
 
 // Returns the events of one .ics file that touch [from, to), with repeating events expanded.
-export function expand(ics, from, to, defaultTz) {
+export function expand(ics, from, to, defaultTz, calendarId) {
   const lines = ics.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r?\n/);
   const calTz = (lines.find(l => l.startsWith('X-WR-TIMEZONE:')) || '').slice(14).trim() || defaultTz;
   const vevents = [];
@@ -99,6 +100,10 @@ export function expand(ics, from, to, defaultTz) {
     const dur = v.DTEND ? parseTime(v.DTEND, start.tz || calTz).utc - start.utc : v.DURATION ? parseDuration(v.DURATION.value) : (start.allDay ? DAY : 0);
     const title = unescapeText(v.SUMMARY ? v.SUMMARY.value : '(No title)');
     const uid = v.UID ? v.UID.value : '';
+    const extra = {};
+    if (v.LOCATION && v.LOCATION.value.trim()) extra.location = unescapeText(v.LOCATION.value);
+    const notes = v.DESCRIPTION ? cleanNotes(v.DESCRIPTION.value) : '';
+    if (notes) extra.notes = notes;
 
     let starts;
     if (v.RRULE && !v['RECURRENCE-ID']) {
@@ -113,14 +118,16 @@ export function expand(ics, from, to, defaultTz) {
       const end = s.utc + dur;
       if (end <= from && !(dur === 0 && s.utc >= from)) continue;
       if (s.utc >= to) continue;
+      const link = googleLink(uid, calendarId, v.RRULE && !v['RECURRENCE-ID'] ? s : null, start.allDay);
+      const more = link ? { ...extra, link } : extra;
       if (start.allDay) {
         // One entry per day so multi-day events show on every day they cover
         for (let d = s.utc, n = 0; d < Math.max(end, s.utc + DAY) && n < 60; d += DAY, n++) {
           if (d < from || d >= to) continue;
-          out.push({ title, start: isoDate(d), end: null, allDay: true });
+          out.push({ title, start: isoDate(d), end: null, allDay: true, ...more });
         }
       } else {
-        out.push({ title, start: new Date(s.utc).toISOString(), end: dur ? new Date(end).toISOString() : null, allDay: false });
+        out.push({ title, start: new Date(s.utc).toISOString(), end: dur ? new Date(end).toISOString() : null, allDay: false, ...more });
       }
     }
   }
@@ -128,6 +135,29 @@ export function expand(ics, from, to, defaultTz) {
 }
 
 function unescapeText(s) { return s.replace(/\\n/gi, ' ').replace(/\\([,;\\])/g, '$1').trim(); }
+
+// DESCRIPTION keeps its line breaks; Google sometimes stores it as HTML
+function cleanNotes(s) {
+  const t = s.replace(/\\n/gi, '\n').replace(/\\([,;\\])/g, '$1')
+    .replace(/<br\s*\/?>|<\/p>|<\/li>/gi, '\n').replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n').trim();
+  return t.length > 800 ? t.slice(0, 800).trim() + '…' : t;
+}
+
+// The calendar's id from its Google iCal URL (.../calendar/ical/<id>/private-.../basic.ics), or '' for other feeds
+function googleCalendarId(url) {
+  const m = String(url).match(/calendar\.google\.com\/calendar\/ical\/([^/]+)\//);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+// Google Calendar's link for an event: eid is base64 of "<event id> <calendar id>"; repeats add _<start> for one occurrence
+function googleLink(uid, calendarId, occurrence, allDay) {
+  if (!calendarId || !/@google\.com$/.test(uid)) return '';
+  let id = uid.replace(/@google\.com$/, '');
+  if (occurrence) id += '_' + new Date(occurrence.utc).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '').slice(0, allDay ? 8 : 16);
+  return 'https://www.google.com/calendar/event?eid=' + btoa(id + ' ' + calendarId).replace(/=+$/, '');
+}
 
 // A DTSTART-like property → { utc, allDay, tz, wall } where wall is the local time as a UTC-based number
 function parseTime(prop, calTz) {
