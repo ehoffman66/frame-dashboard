@@ -10,3 +10,5 @@ mkdir -p docs
   printf '\n</body>\n</html>\n'
 } > docs/index.html
 echo "Built docs/index.html"
+cp src/art.html docs/art.html
+echo "Built docs/art.html"
