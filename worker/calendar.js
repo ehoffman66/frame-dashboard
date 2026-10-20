@@ -224,6 +224,18 @@ function spotifyAccount(items) {
   const f = (items || []).find(x => x.resource && x.resource.id && /spotify/i.test(String(x.resource.id.objectId || '') + (x.service && x.service.name)));
   return f ? { serviceId: f.resource.id.serviceId, accountId: f.resource.id.accountId } : null;
 }
+// ...or from whatever a room is playing from Spotify right now
+async function playingSpotify(env, hh) {
+  const gr = await so(env, 'GET', '/households/' + hh + '/groups');
+  for (const x of gr.groups || []) {
+    if (x.playbackState !== 'PLAYBACK_STATE_PLAYING' && x.playbackState !== 'PLAYBACK_STATE_PAUSED') continue;
+    const m = await so(env, 'GET', '/groups/' + x.id + '/playbackMetadata').catch(() => null);
+    const ids = [m && m.container && m.container.id, m && m.currentItem && m.currentItem.track && m.currentItem.track.id];
+    const id = ids.find(i => i && i.accountId && /spotify/i.test(String(i.objectId || '') + JSON.stringify(m.container && m.container.service || '')));
+    if (id) return { serviceId: id.serviceId, accountId: id.accountId };
+  }
+  return null;
+}
 async function household(env) {
   if (globalThis.soHousehold) return globalThis.soHousehold;
   const j = await so(env, 'GET', '/households');
@@ -285,14 +297,14 @@ async function sonos(request, url, env, cors, skip) {
           so(env, 'GET', '/households/' + hh + '/playlists').catch(() => null),
           spotifyOn(env) ? spotifyLists(env).catch(() => []) : []
         ]);
-        globalThis.soSpotify = spotifyAccount(f.items);
+        globalThis.soSpotify = spotifyAccount(f.items) || globalThis.soSpotify;
         const items = (f.items || []).map(x => ({ name: x.name, uri: 'fav:' + x.id, art: x.imageUrl || '', by: x.description || (x.service && x.service.name) || 'Favorite' }))
           .concat(((pl && pl.playlists) || []).map(x => ({ name: x.name, uri: 'sonospl:' + x.id, art: '', by: 'Sonos playlist' })))
-          .concat(globalThis.soSpotify ? sp.map(x => ({ ...x, by: 'Spotify' + (x.by ? ' · ' + x.by : '') })) : []);
+          .concat(sp.map(x => ({ ...x, by: 'Spotify' + (x.by ? ' · ' + x.by : '') })));
         return json({ items }, 200, cors);
       }
       case 'search': {
-        if (!spotifyOn(env) || !globalThis.soSpotify) return json({ items: [] }, 200, cors);
+        if (!spotifyOn(env)) return json({ items: [] }, 200, cors);
         return json({ items: await spotifySearch(env, url.searchParams.get('q') || '') }, 200, cors);
       }
       case 'play': {
@@ -300,8 +312,9 @@ async function sonos(request, url, env, cors, skip) {
         if (u.startsWith('sonospl:')) await so(env, 'POST', need() + '/playlists', { playlistId: u.slice(8), playOnCompletion: true, action: 'REPLACE' });
         else if (u.startsWith('spotify:')) {
           // Spotify items play through the Spotify account linked in the Sonos app, learnt from a Spotify favorite
-          const acct = globalThis.soSpotify || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items);
-          if (!acct) throw new Error('Add one Spotify playlist to your Sonos Favorites first, so Sonos knows which Spotify account to use');
+          const acct = globalThis.soSpotify || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
+          if (!acct) throw new Error('Play something from Spotify on a Sonos once (or heart a Spotify playlist in the Sonos app), so Sonos knows which Spotify account to use');
+          globalThis.soSpotify = acct;
           const type = u.split(':')[1].toUpperCase();
           await so(env, 'POST', need() + '/playback/content', {
             type: type === 'ARTIST' ? 'ARTIST' : type === 'ALBUM' ? 'ALBUM' : 'PLAYLIST',
