@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400&family=Figtree:wght@400&display=swap">
 <style>
-/* Full-screen public-domain paintings for Fully Kiosk's screensaver. Fully closes it when it sees a face. */
+/* Full-screen photos (Unsplash) or public-domain paintings for Fully Kiosk's screensaver. Fully closes it when it sees a face. */
 html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
 img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2.5s; }
 img.on { opacity: 1; }
@@ -16,16 +16,26 @@ img.on { opacity: 1; }
 .t { font-family: "Bricolage Grotesque", sans-serif; font-size: 24px; line-height: 1.2; }
 .by { font-size: 16px; opacity: .75; margin-top: 4px; }
 .clock { font-family: "Bricolage Grotesque", sans-serif; font-size: 40px; white-space: nowrap; }
+/* Unsplash asks for a photographer credit, so photos get a small, faint one */
+.credit { position: absolute; right: 14px; bottom: 10px; font: 12px Figtree, sans-serif; color: #fff; opacity: .45; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.caption .credit { display: none; }
 </style>
 </head>
 <body>
 <img id="a" alt=""><img id="b" alt="">
 <div class="cap"><div><div class="t" id="title"></div><div class="by" id="by"></div></div><div class="clock" id="clock"></div></div>
+<div class="credit" id="credit"></div>
 <script>
-// ?every=75 sets seconds per painting; ?caption=1 shows the title, artist and time (off by default: just the art)
+// ?every=75 sets seconds per picture; ?caption=1 shows the title, artist and time (off by default: just the art).
+// Photos by default: Lorem Picsum's ~1,000 hand-picked Unsplash photos, no key needed. ?paintings=1 brings back the paintings.
+// ?unsplash=ACCESS_KEY switches to themed Unsplash photos; ?topics=a,b,c picks the searches it rotates through.
+// The key lives only in Fully's screensaver URL on the tablet, never in this repo.
 var q = new URLSearchParams(location.search);
 var EVERY = (+q.get('every') || 75) * 1000;
 if (q.get('caption')) document.body.className = 'caption';
+var KEY = q.get('unsplash');
+var TOPICS = (q.get('topics') || 'minimal architecture,aerial landscape,abstract,long exposure,modern architecture,minimalist nature').split(',');
+var PAINTINGS = q.get('paintings');
 var list = [], front = 'a', loading = false;
 function el(id) { return document.getElementById(id); }
 
@@ -42,14 +52,50 @@ function query(page) {
   return fetch('https://api.artic.edu/api/v1/artworks/search?params=' + encodeURIComponent(JSON.stringify(params)))
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
 }
+function paintings() {
+  return query(1 + Math.floor(Math.random() * pages)).then(function (j) {
+    if (j.pagination) pages = Math.max(1, j.pagination.total_pages || 1);
+    return (j.data || []).filter(function (a) { var t = a.thumbnail, r = t && t.width / t.height; return a.image_id && r > 1.15 && r < 2.2; })
+      .map(function (a) {
+        return { src: 'https://www.artic.edu/iiif/2/' + a.image_id + '/full/1686,/0/default.jpg',
+          title: a.title, by: [a.artist_title, a.date_display].filter(Boolean).join(', ') };
+      });
+  });
+}
+
+// Picsum: about ten pages of 100; landscape ones only, served at the tablet's exact 1920x1200
+var picPages = 10;
+function picsum() {
+  return fetch('https://picsum.photos/v2/list?limit=100&page=' + (1 + Math.floor(Math.random() * picPages)))
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) {
+      if (!j.length) picPages = Math.max(1, picPages - 1);
+      return j.filter(function (p) { return p.width > p.height; })
+        .map(function (p) { return { src: 'https://picsum.photos/id/' + p.id + '/1920/1200', title: '', by: p.author || '' }; });
+    });
+}
+
+// 30 landscape photos per request on one rotating search, so about two requests an hour (the free key allows 50)
+var topic = Math.floor(Math.random() * TOPICS.length);
+function photos() {
+  var t = TOPICS[topic++ % TOPICS.length].trim();
+  return fetch('https://api.unsplash.com/photos/random?count=30&orientation=landscape&content_filter=high&query=' + encodeURIComponent(t),
+    { headers: { Authorization: 'Client-ID ' + KEY, 'Accept-Version': 'v1' } })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) {
+      return j.map(function (p) {
+        var name = p.user && p.user.name;
+        return { src: p.urls.raw + '&w=1920&h=1200&fit=crop&crop=entropy&q=80&fm=jpg',
+          title: p.description || p.alt_description || '', by: name ? name + ' on Unsplash' : 'Unsplash',
+          credit: name ? 'Photo by ' + name + ' on Unsplash' : 'Unsplash' };
+      });
+    });
+}
+
 function load() {
   if (loading) return Promise.resolve(); loading = true;
-  return query(1 + Math.floor(Math.random() * pages))
-    .then(function (j) {
-      if (j.pagination) pages = Math.max(1, j.pagination.total_pages || 1);
-      list = (j.data || []).filter(function (a) { var t = a.thumbnail, r = t && t.width / t.height; return a.image_id && r > 1.15 && r < 2.2; })
-        .sort(function () { return Math.random() - .5; });
-    })
+  return (KEY ? photos() : PAINTINGS ? paintings() : picsum())
+    .then(function (l) { list = l.sort(function () { return Math.random() - .5; }); })
     .catch(function () {})
     .then(function () { loading = false; });
 }
@@ -60,10 +106,11 @@ function next() {
   img.onload = function () {
     img.className = 'on'; el(front).className = ''; front = back;
     el('title').textContent = a.title || '';
-    el('by').textContent = [a.artist_title, a.date_display].filter(Boolean).join(', ');
+    el('by').textContent = a.by || '';
+    el('credit').textContent = a.credit || '';
   };
   img.onerror = next;
-  img.src = 'https://www.artic.edu/iiif/2/' + a.image_id + '/full/1686,/0/default.jpg';
+  img.src = a.src;
   if (list.length < 3) load();
 }
 
