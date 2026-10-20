@@ -84,7 +84,7 @@ body { display: flex; align-items: center; justify-content: center; }
 .tab {
   position: relative;
   background: none; border: 0;
-  height: 84px;
+  height: 74px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   color: var(--muted);
   font-size: 14px; font-weight: 600; letter-spacing: .5px;
@@ -229,6 +229,34 @@ body { display: flex; align-items: center; justify-content: center; }
 .table-rows .mini-row.us { color: var(--team); font-weight: 600; }
 .asof { font-size: 13px; color: var(--muted); margin-top: auto; }
 
+/* Music (Spotify, played on the Sonos speakers) */
+.music { display: grid; grid-template-columns: 380px 1fr; gap: 40px; height: 100%; }
+.np { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.np-art { width: 360px; height: 360px; border-radius: 18px; background: var(--panel) center/cover no-repeat; flex: none; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.np-art svg { width: 80px; height: 80px; opacity: .5; }
+.np-ttl { font-family: var(--display); font-size: 30px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-by { font-size: 19px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: -8px; }
+.np-bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.np-bar div { height: 100%; background: var(--lamp); }
+.np-ctl { display: flex; align-items: center; gap: 14px; }
+.np-ctl .btn.icon svg { width: 26px; height: 26px; }
+.np-ctl .play { width: 76px; height: 76px; border-radius: 50%; }
+.np-ctl .play svg { width: 32px; height: 32px; }
+.np-vol { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 17px; color: var(--muted); }
+.np-vol .btn.icon { width: 48px; height: 48px; font-size: 24px; }
+.np-vol b { min-width: 40px; text-align: center; color: var(--fg); font-weight: 600; }
+.lib { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; }
+.lib-h { display: flex; gap: 10px; align-items: center; }
+.lib-h .add-row { flex: 1; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; align-content: start; }
+.tile { border: 0; background: none; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tile i { display: block; width: 100%; aspect-ratio: 1; border-radius: 12px; background: var(--panel) center/cover no-repeat; }
+.tile b { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile span { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: -4px; }
+.tile.on b { color: var(--lamp); }
+.music-msg { font-size: 17px; color: var(--muted); line-height: 1.4; }
+.music-msg.err { color: #e58a7a; }
+
 /* Sheet (modal for adding things) */
 .sheet-veil { position: fixed; inset: 0; background: #05080b; opacity: .7; }
 .sheet {
@@ -342,6 +370,22 @@ body.night .night-veil { opacity: .72; }
 
     <section class="view frame" id="view-cocktails" hidden></section>
 
+    <section class="view" id="view-music" hidden>
+      <div class="music">
+        <div class="np" id="np"></div>
+        <div class="lib">
+          <div class="lib-h">
+            <button class="chip-btn" data-action="music-mine" id="m-mine">Our playlists</button>
+            <form class="add-row" data-form="music-search">
+              <input class="field" id="m-q" placeholder="Search Spotify" autocomplete="off" aria-label="Search Spotify">
+              <button class="btn primary" type="submit">Search</button>
+            </form>
+          </div>
+          <div class="tiles" id="m-tiles"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="view" id="view-chores" hidden>
       <div class="view-title"><h1>To-do</h1><span class="count" id="c-count"></span></div>
       <div class="split">
@@ -373,6 +417,8 @@ body.night .night-veil { opacity: .72; }
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="22" height="22" rx="5"/><path d="m11 16 4 4 7-8"/></svg>To-do<span class="badge" id="c-badge" hidden></span></button>
     <button class="tab" role="tab" data-tab="cocktails" aria-selected="false">
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h22L16 18zM16 18v9M10 27h12M21 6l3-3"/></svg>Cocktails</button>
+    <button class="tab" role="tab" data-tab="music" aria-selected="false">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 24V7l14-3v17"/><circle cx="8.5" cy="24" r="3.5"/><circle cx="22.5" cy="21" r="3.5"/></svg>Music</button>
     <button class="tab" role="tab" data-tab="sports" aria-selected="false">
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><circle cx="16" cy="16" r="11"/><path d="m16 10 5 3.6-1.9 5.9h-6.2L11 13.6z"/><path d="M16 5v5M26.5 12.6 21 13.6M22.5 25l-3.4-5.5M9.5 25l3.4-5.5M5.5 12.6l5.5 1"/></svg>Sports</button>
     <div class="spacer"></div>
@@ -495,12 +541,13 @@ function fill(id, html) { var n = el(id); if (n._html !== html) { n._html = html
 // ---- Tabs and idle return ----
 function showTab(tab) {
   state.tab = tab;
-  ['home', 'calendar', 'groceries', 'meals', 'chores', 'cocktails', 'sports'].forEach(function (t) { el('view-' + t).hidden = t !== tab; });
+  ['home', 'calendar', 'groceries', 'meals', 'chores', 'cocktails', 'music', 'sports'].forEach(function (t) { el('view-' + t).hidden = t !== tab; });
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
   el('rail-time').style.visibility = tab === 'home' ? 'hidden' : 'visible';
   if (tab !== 'calendar') state.weekOffset = 0;
   renderAll();
   if (tab === 'groceries') pullGroceries();
+  if (tab === 'music') { pullMusic(); if (!music.listLoaded) loadPlaylists(); }
   // Load the cocktail app the first time its tab opens, then keep it so searches survive switching tabs
   if (tab === 'cocktails' && !el('view-cocktails').firstChild) el('view-cocktails').innerHTML = '<iframe src="' + esc(CONFIG.cocktailsUrl) + '" title="Cocktail Journal" allow="clipboard-write"></iframe>';
 }
@@ -874,6 +921,7 @@ function renderAll() {
   if (state.tab === 'meals') renderMeals();
   if (state.tab === 'chores') renderChores();
   if (state.tab === 'sports') renderSports();
+  if (state.tab === 'music') renderMusic();
 }
 
 // ---- Sheets ----
@@ -995,6 +1043,12 @@ document.addEventListener('click', function (ev) {
     if (k > -1) ids.splice(k, 1); else ids.push(id);
     store.set('choreDone', state.choreDone); renderAll();
   }
+  else if (a === 'music-toggle') musicAct(music.playing ? 'pause' : 'play', { device: speakerId() }, { playing: !music.playing });
+  else if (a === 'music-next' || a === 'music-prev') musicAct(a === 'music-next' ? 'next' : 'previous', {});
+  else if (a === 'music-vol') setVolume(+t.getAttribute('data-step'));
+  else if (a === 'music-speaker') pickSpeaker(t.getAttribute('data-name'));
+  else if (a === 'music-play') musicAct('play', { uri: t.getAttribute('data-uri'), device: speakerId() }, { playing: true, playingUri: t.getAttribute('data-uri') });
+  else if (a === 'music-mine') loadPlaylists();
   else if (a === 'who') { state.choreWho = t.getAttribute('data-name'); renderChores(); }
 });
 
@@ -1032,6 +1086,7 @@ document.addEventListener('submit', function (ev) {
     if (v) { state.chores.push({ id: uid(), name: v, who: state.choreWho }); store.set('chores', state.chores); }
     el('c-input').value = ''; renderAll();
   }
+  if (kind === 'music-search') { var mq = el('m-q').value.trim(); if (mq) searchMusic(mq); el('m-q').blur(); }
   if (kind === 'meal') {
     var m = el('meal-input').value.trim(), key = f.getAttribute('data-key');
     if (m) state.meals[key] = m; else delete state.meals[key];
@@ -1052,6 +1107,103 @@ function loadCalendar() {
       if (!store.get('meals', null) && Object.keys(state.calMeals).length) state.meals = {};
     })
     .catch(function () {});
+}
+
+// ---- Music: Spotify through the calendar Worker (it holds the Spotify login), played on the Sonos speakers ----
+var music = { loaded: false, setup: true, err: '', playing: false, track: null, progress: 0, device: null, devices: [],
+  pick: store.get('musicSpeaker', ''), list: [], listTitle: 'mine', listLoaded: false, playingUri: '', busyUntil: 0 };
+function spUrl(path) { var u = store.get('calendarUrl', '') || CONFIG.calendarUrl; return u ? u.replace(/\/+$/, '') + '/spotify/' + path : ''; }
+function spGet(path) {
+  var u = spUrl(path);
+  if (!u) return Promise.resolve({ error: 'setup' });
+  return fetch(u, { cache: 'no-store' }).then(function (r) { return r.json(); });
+}
+function spPost(path, body) {
+  return fetch(spUrl(path), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).then(function (r) { return r.json(); });
+}
+function musicErr(j) {
+  music.setup = !(j && j.error === 'setup');
+  music.err = j && j.error && j.error !== 'setup' ? (j.message || 'Spotify didn\'t respond') : '';
+  return !(j && j.error);
+}
+// The speaker music goes to: the one picked on the frame if Spotify can see it, else whatever is playing now
+function speaker() {
+  var d = music.devices;
+  return d.filter(function (x) { return x.name === music.pick; })[0] || d.filter(function (x) { return x.active; })[0] || null;
+}
+function speakerId() { var s = speaker(); return s ? s.id : undefined; }
+function pullMusic() {
+  if (Date.now() < music.busyUntil) return Promise.resolve(); // let a tap settle before Spotify's state overwrites it
+  return spGet('state').then(function (j) {
+    music.loaded = true;
+    if (musicErr(j)) {
+      music.playing = j.playing; music.track = j.track; music.progress = j.progress; music.device = j.device; music.devices = j.devices || [];
+    }
+  }).catch(function () { music.loaded = true; music.err = 'Can\'t reach Spotify right now'; })
+    .then(function () { if (state.tab === 'music' && el('sheet-root').hidden) renderMusic(); });
+}
+function musicAct(path, body, optimistic) {
+  if (optimistic) { for (var k in optimistic) music[k] = optimistic[k]; renderMusic(); }
+  music.busyUntil = Date.now() + 1500;
+  return spPost(path, body).then(function (j) { musicErr(j); }).catch(function () { music.err = 'Can\'t reach Spotify right now'; })
+    .then(function () { music.busyUntil = 0; renderMusic(); setTimeout(pullMusic, 800); });
+}
+function setVolume(step) {
+  var s = speaker();
+  if (!s) return;
+  s.volume = Math.max(0, Math.min(100, Math.round(((s.volume || 0) + step) / 5) * 5));
+  musicAct('volume', { percent: s.volume, device: s.id }, {});
+}
+function pickSpeaker(name) {
+  music.pick = name; store.set('musicSpeaker', name);
+  var s = speaker();
+  if (s && music.playing && s.id !== music.device) musicAct('transfer', { device: s.id, play: true }, { device: s.id });
+  else renderMusic();
+}
+function showList(j, title) {
+  music.listTitle = title;
+  if (musicErr(j)) music.list = j.items || [];
+  renderMusic();
+}
+function loadPlaylists() { music.listLoaded = true; return spGet('playlists').then(function (j) { showList(j, 'mine'); }).catch(function () {}); }
+function searchMusic(q) { return spGet('search?q=' + encodeURIComponent(q)).then(function (j) { showList(j, 'search'); }).catch(function () {}); }
+
+var MUSIC_ICON = {
+  play: '<svg viewBox="0 0 32 32"><path d="M10 6v20l17-10z" fill="currentColor"/></svg>',
+  pause: '<svg viewBox="0 0 32 32" fill="currentColor"><rect x="8" y="6" width="5.5" height="20" rx="1.5"/><rect x="18.5" y="6" width="5.5" height="20" rx="1.5"/></svg>',
+  next: '<svg viewBox="0 0 32 32" fill="currentColor"><path d="M6 7v18l14-9z"/><rect x="21" y="7" width="4" height="18" rx="1"/></svg>',
+  prev: '<svg viewBox="0 0 32 32" fill="currentColor"><path d="M26 7v18L12 16z"/><rect x="7" y="7" width="4" height="18" rx="1"/></svg>',
+  note: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 24V7l14-3v17"/><circle cx="8.5" cy="24" r="3.5"/><circle cx="22.5" cy="21" r="3.5"/></svg>'
+};
+function renderMusic() {
+  if (!music.setup) {
+    fill('np', '<div class="np-art">' + MUSIC_ICON.note + '</div><div class="np-ttl">Music</div>' +
+      '<div class="music-msg">Spotify isn\'t connected to the dashboard yet. Once it is, you can play your playlists on the Sonos speakers from here.</div>');
+    fill('m-tiles', ''); return;
+  }
+  var t = music.track, s = speaker(), html = '';
+  html += '<div class="np-art"' + (t && t.art ? ' style="background-image:url(\'' + esc(t.art) + '\')"' : '') + '>' + (t && t.art ? '' : MUSIC_ICON.note) + '</div>';
+  html += '<div class="np-ttl">' + (t ? esc(t.name) : music.loaded ? 'Nothing playing' : 'Loading…') + '</div>';
+  html += '<div class="np-by">' + (t ? esc(t.by) : 'Pick a playlist to start') + '</div>';
+  html += '<div class="np-bar"><div style="width:' + (t && t.ms ? Math.min(100, 100 * music.progress / t.ms) : 0) + '%"></div></div>';
+  html += '<div class="np-ctl"><button class="btn icon" data-action="music-prev" aria-label="Previous">' + MUSIC_ICON.prev + '</button>' +
+    '<button class="btn primary play" data-action="music-toggle" aria-label="' + (music.playing ? 'Pause' : 'Play') + '">' + (music.playing ? MUSIC_ICON.pause : MUSIC_ICON.play) + '</button>' +
+    '<button class="btn icon" data-action="music-next" aria-label="Next">' + MUSIC_ICON.next + '</button>' +
+    (s && s.canVolume ? '<div class="np-vol"><button class="btn icon" data-action="music-vol" data-step="-5" aria-label="Quieter">−</button><b>' + (s.volume == null ? '–' : s.volume) + '</b>' +
+      '<button class="btn icon" data-action="music-vol" data-step="5" aria-label="Louder">+</button></div>' : '') + '</div>';
+  html += '<div class="eyebrow">Speaker</div>';
+  html += music.devices.length
+    ? '<div class="chips">' + music.devices.map(function (d) {
+        return '<button class="chip-btn" data-action="music-speaker" data-name="' + esc(d.name) + '" aria-pressed="' + (!!s && s.id === d.id) + '">' + esc(d.name) + '</button>';
+      }).join('') + '</div>'
+    : '<div class="music-msg">' + (music.loaded ? 'No speakers showing. Play something on a Sonos from the Spotify app once and it will appear here.' : '') + '</div>';
+  if (music.err) html += '<div class="music-msg err">' + esc(music.err) + '</div>';
+  fill('np', html);
+  el('m-mine').setAttribute('aria-pressed', music.listTitle === 'mine' ? 'true' : 'false');
+  fill('m-tiles', music.list.length ? music.list.map(function (p) {
+    return '<button class="tile' + (p.uri === music.playingUri ? ' on' : '') + '" data-action="music-play" data-uri="' + esc(p.uri) + '">' +
+      '<i' + (p.art ? ' style="background-image:url(\'' + esc(p.art) + '\')"' : '') + '></i><b>' + esc(p.name) + '</b><span>' + esc(p.by || '') + '</span></button>';
+  }).join('') : '<div class="music-msg">' + (music.listTitle === 'search' ? 'Nothing found.' : music.listLoaded ? '' : '') + '</div>');
 }
 
 function footer() {
@@ -1246,6 +1398,8 @@ tick();
 renderAll();
 loadSports();
 setInterval(loadSports, 15 * 60000);
+// Spotify's state every 5 seconds while the Music tab is open
+setInterval(function () { if (state.tab === 'music' && el('sheet-root').hidden) pullMusic(); }, 5000);
 pullGroceries();
 // Every minute on the Groceries tab, every 5 minutes otherwise (for the badge)
 setInterval(function () { if (state.tab === 'groceries' || nowZ().getMinutes() % 5 === 0) pullGroceries(); }, 60000);

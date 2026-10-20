@@ -38,3 +38,16 @@ The code is [`calendar.js`](calendar.js). It needs no build step and fits Cloudf
 - Events added on the frame still stay on the frame; they are not written to Google Calendar.
 - Google can take a few hours to reflect changes in its iCal links. This is a Google limit, not the Worker's.
 - Test the date maths with `node worker/test/expand.test.mjs`.
+
+## Spotify for the Music tab (about 5 minutes)
+
+The Music tab plays Spotify on the Sonos speakers. Spotify only allows this on Premium accounts. The Worker keeps the Spotify login, so the tablet and the public page never hold it.
+
+1. **Make a Spotify app.** Go to <https://developer.spotify.com/dashboard> on a computer, log in with your Spotify account, and click *Create app*.
+   - App name: `Frame dashboard`. Description: anything.
+   - Redirect URI: `https://frame-calendar.<your-subdomain>.workers.dev/spotify/callback` (click *Add*).
+   - Tick *Web API*, accept the terms, and click *Save*.
+2. **Copy its two values into the Worker.** In the app's *Settings*, copy the **Client ID** and **Client secret** (*View client secret*). In Cloudflare add them as Secrets named `SPOTIFY_ID` and `SPOTIFY_SECRET`, then deploy the latest [`calendar.js`](calendar.js).
+3. **Sign in once.** On your computer or phone (not the tablet), open `https://frame-calendar.<your-subdomain>.workers.dev/<KEY>/spotify/login` and approve. The page shows a long value: add it as a Secret named `SPOTIFY_REFRESH`.
+
+That's it: the Music tab uses the calendar address the frame already has. If a Sonos room is missing from the speaker list, play something on it from the Spotify app once and it appears.
