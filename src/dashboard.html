@@ -379,7 +379,7 @@ var CONFIG = {
   calendarUrl: '',         // the calendar Worker's URL (see README). Usually passed once as #calendar=URL instead, since it holds a secret.
   sportsUrl: 'sports.json', // written by the Charlotte FC and Checkers update routines; see README
   groceriesProject: 'Groceries', // Todoist project the Groceries tab shows, once a token is saved on the frame (see README)
-  people: ['Erik', 'Kids', 'Anyone'],
+  people: ['Erik', 'Alex', 'All'],
   nightStart: 22,          // dim from 10pm
   nightEnd: 6.5,           // until 6:30am
   idleReturnSec: 120,      // go back to Home after this long without a touch
@@ -438,12 +438,12 @@ var state = {
   ]),
   meals: store.get('meals', {}),
   chores: store.get('chores', [
-    { id: 'c1', name: 'Empty the dishwasher', who: 'Kids' }, { id: 'c2', name: 'Take out trash', who: 'Erik' },
-    { id: 'c3', name: 'Make beds', who: 'Kids' }, { id: 'c4', name: 'Water plants', who: 'Anyone' },
-    { id: 'c5', name: 'Tidy living room', who: 'Anyone' }
+    { id: 'c1', name: 'Empty the dishwasher', who: 'Alex' }, { id: 'c2', name: 'Take out trash', who: 'Erik' },
+    { id: 'c3', name: 'Make beds', who: 'Alex' }, { id: 'c4', name: 'Water plants', who: 'All' },
+    { id: 'c5', name: 'Tidy living room', who: 'All' }
   ]),
   choreDone: store.get('choreDone', { day: '', ids: [] }),
-  choreWho: 'Anyone'
+  choreWho: 'All'
 };
 if (!store.get('meals', null)) {
   var t0 = nowZ();
