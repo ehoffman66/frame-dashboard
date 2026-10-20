@@ -20,4 +20,11 @@ assert.equal(of('Vitamins').length, 7); // Oct 12..18
 assert.equal(of('Cancelled thing').length, 0);
 assert.deepEqual(of('Book club'), ['Oct 30, 7:00 PM']);
 assert.equal(of('Trash night').length, 3);
+// Details and the Google Calendar link (only for google.com UIDs, given the feed's calendar id)
+const concert = expand(ics, from, to, 'America/New_York', 'fam@group.calendar.google.com').find(e => e.title === 'Concert');
+assert.equal(concert.location, 'The Fillmore, Charlotte');
+assert.equal(concert.notes, 'Doors at 7.\nBring tickets& IDs.');
+assert.equal(Buffer.from(new URL(concert.link).searchParams.get('eid'), 'base64').toString(), 'abc123 fam@group.calendar.google.com');
+assert.equal(ev.find(e => e.title === 'Concert').link, undefined);
+assert.equal(ev.find(e => e.title === 'Book club').link, undefined);
 console.log('ok');

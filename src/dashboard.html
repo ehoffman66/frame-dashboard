@@ -38,12 +38,13 @@ button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
 
+/* The panel is laid out at 1280x800 and zoomed to fill whatever screen it's on (fitPanel below). */
+body { display: flex; align-items: center; justify-content: center; }
 .app {
   box-sizing: border-box;
-  height: 100%;
-  max-width: 1280px;
-  max-height: 800px;
-  margin: 0 auto;
+  width: 1280px;
+  height: 800px;
+  flex: none;
   display: grid;
   grid-template-columns: 1fr 104px;
 }
@@ -120,7 +121,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--lamp); outl
 .agenda { display: flex; flex-direction: column; gap: 20px; min-height: 0; overflow: hidden; }
 .group h2 { margin: 0 0 8px; display: flex; justify-content: space-between; }
 .group h2 b { color: var(--lamp); font-weight: 600; }
-.ev { display: grid; grid-template-columns: 96px 6px 1fr; gap: 0 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.ev { display: grid; grid-template-columns: 96px 6px 1fr; gap: 0 14px; align-items: center; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); background: none; width: 100%; text-align: left; }
 .ev:last-child { border-bottom: 0; }
 .ev .when { font-size: 18px; color: var(--muted); text-align: right; white-space: nowrap; }
 .ev .dot { width: 6px; height: 28px; border-radius: 3px; }
@@ -217,6 +218,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--lamp); outl
 .sheet h3 { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 600; }
 .sheet .actions { display: flex; justify-content: flex-end; gap: 10px; }
 .sheet .actions .danger { margin-right: auto; color: #e58a7a; background: none; }
+/* Event details */
+.sheet.wide { width: 860px; }
+.ev-detail { display: flex; gap: 28px; }
+.ev-detail .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.ev-detail h3 { font-size: 38px; line-height: 1.12; overflow-wrap: break-word; }
+.ev-detail .when { font-size: 24px; font-weight: 500; }
+.ev-detail .meta { display: flex; align-items: center; gap: 10px; font-size: 20px; color: var(--muted); }
+.ev-detail .meta i { flex: none; width: 14px; height: 14px; border-radius: 50%; }
+.ev-detail .notes { font-size: 19px; line-height: 1.45; color: var(--fg); white-space: pre-line; overflow-wrap: break-word; max-height: 240px; overflow-y: auto; background: var(--bg); border-radius: 14px; padding: 14px 18px; }
+.ev-detail .qr { flex: none; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; font-size: 16px; color: var(--muted); }
+.ev-detail .qr canvas, .ev-detail .qr img { width: 200px; height: 200px; border-radius: 12px; background: #ffffff; }
 
 /* Overnight dimming. Real screen-off needs the kiosk app; this keeps the panel from lighting the room. */
 .night-veil { position: fixed; inset: 0; background: #000000; opacity: 0; pointer-events: none; transition: opacity 2s; }
@@ -344,6 +356,14 @@ body.night .night-veil { opacity: .72; }
 <div class="night-veil"></div>
 
 <script>
+// Scale the 1280x800 panel to the screen, so it fills a 1920x1200 tablet the same as an 800px frame.
+function fitPanel() {
+  var app = document.querySelector('.app');
+  app.style.zoom = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
+}
+fitPanel();
+window.addEventListener('resize', fitPanel);
+
 // ---- Settings: edit these, then reload the frame ----
 var CONFIG = {
   place: 'Charlotte',
@@ -543,16 +563,22 @@ function allEvents() {
   var feed = state.feedEvents ? state.feedEvents.map(function (e) {
     // All-day dates ("2026-10-15") are already calendar days; timed events are instants to show in Charlotte time
     var allDayStart = e.allDay && /^\d{4}-\d\d-\d\d$/.test(e.start);
-    return { title: e.title, start: allDayStart ? parseWall(e.start) : zt(e.start), end: e.end ? (allDayStart ? parseWall(e.end) : zt(e.end)) : null, allDay: e.allDay, calendar: e.calendar, color: e.color };
+    return { title: e.title, start: allDayStart ? parseWall(e.start) : zt(e.start), end: e.end ? (allDayStart ? parseWall(e.end) : zt(e.end)) : null, allDay: e.allDay, calendar: e.calendar, color: e.color, location: e.location, notes: e.notes, link: e.link };
   }) : sampleEvents();
-  return feed.concat(state.localEvents.map(function (e) {
-    return { id: e.id, local: true, title: e.title, start: parseWall(e.start), end: e.end ? parseWall(e.end) : null, allDay: e.allDay, calendar: e.calendar };
+  feed.forEach(function (e, i) { e.key = 'f' + i; });
+  var list = feed.concat(state.localEvents.map(function (e) {
+    return { id: e.id, key: 'l' + e.id, local: true, title: e.title, start: parseWall(e.start), end: e.end ? parseWall(e.end) : null, allDay: e.allDay, calendar: e.calendar };
   })).sort(function (a, b) {
     var sa = new Date(a.start), sb = new Date(b.start);
     if (sameDay(sa, sb) && !!a.allDay !== !!b.allDay) return a.allDay ? -1 : 1;
     return sa - sb;
   });
+  // Remember what was drawn, so a tap can open that event's details
+  shownEvents = {};
+  list.forEach(function (e) { shownEvents[e.key] = e; });
+  return list;
 }
+var shownEvents = {};
 function eventsOn(events, day) { return events.filter(function (e) { return sameDay(new Date(e.start), day); }); }
 
 function evRow(e, now) {
@@ -561,9 +587,9 @@ function evRow(e, now) {
   if (!e.allDay && end < now) cls += ' past';
   else if (!e.allDay && start <= now && end > now) cls += ' live';
   var when = e.allDay ? 'All day' : (cls.indexOf('live') > -1 ? 'Now' : hm(start));
-  return '<div class="' + cls + '"><div class="when">' + when + '</div>' +
+  return '<button class="' + cls + '" data-action="event" data-key="' + e.key + '"><div class="when">' + when + '</div>' +
     '<div class="dot" style="background:' + (e.color || CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"></div>' +
-    '<div class="what">' + esc(e.title) + '</div></div>';
+    '<div class="what">' + esc(e.title) + '</div></button>';
 }
 
 function renderHome() {
@@ -578,7 +604,7 @@ function renderHome() {
   var later = events.filter(function (e) { var s = new Date(e.start); return s > at(addDays(now, 1), 23, 59) && s < addDays(now, 7); });
   if (later.length) {
     html += '<div class="group"><h2 class="eyebrow">Later this week</h2>' + later.slice(0, 2).map(function (e) {
-      return evRow({ title: e.title, start: e.start, allDay: true, calendar: e.calendar, color: e.color }, now).replace('All day', DAYS[new Date(e.start).getDay()].slice(0, 3));
+      return evRow({ key: e.key, title: e.title, start: e.start, allDay: true, calendar: e.calendar, color: e.color }, now).replace('All day', DAYS[new Date(e.start).getDay()].slice(0, 3));
     }).join('') + '</div>';
   }
   el('agenda').innerHTML = html;
@@ -604,7 +630,7 @@ function renderCalendar() {
     html += '<div class="wday' + (isToday ? ' today' : '') + '"><div class="wday-h"><span class="dn">' + (isToday ? 'Today' : DAYS[d.getDay()].slice(0, 3)) + '</span><span class="dd">' + d.getDate() + '</span></div>';
     list.slice(0, 5).forEach(function (e) {
       html += '<button class="wev" style="border-left-color:' + (e.color || CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"' +
-        (e.local ? ' data-action="event" data-id="' + e.id + '"' : ' tabindex="-1"') + '>' +
+        ' data-action="event" data-key="' + e.key + '">' +
         '<span class="t">' + (e.allDay ? 'All day' : hm(new Date(e.start))) + '</span><span class="n">' + esc(e.title) + '</span></button>';
     });
     if (list.length > 5) html += '<div class="more">+' + (list.length - 5) + ' more</div>';
@@ -803,7 +829,7 @@ function renderAll() {
 }
 
 // ---- Sheets ----
-function openSheet(html) { el('sheet').innerHTML = html; el('sheet-root').hidden = false; var f = el('sheet').querySelector('input'); if (f) f.focus(); }
+function openSheet(html) { el('sheet').className = 'sheet'; el('sheet').innerHTML = html; el('sheet-root').hidden = false; var f = el('sheet').querySelector('input'); if (f) f.focus(); }
 function closeSheet() { el('sheet-root').hidden = true; el('sheet').innerHTML = ''; }
 var draft = null;
 
@@ -816,7 +842,7 @@ function eventSheet() {
   var cals = ['family', 'school', 'work'].map(function (c) {
     return '<button class="chip-btn" data-action="draft-cal" data-cal="' + c + '" aria-pressed="' + (draft.calendar === c) + '"><span style="color:' + CAL_COLORS[c] + '">●</span> ' + c.charAt(0).toUpperCase() + c.slice(1) + '</button>';
   }).join('');
-  openSheet('<h3>New event</h3>' +
+  openSheet('<h3>' + (draft.id ? 'Edit event' : 'New event') + '</h3>' +
     '<input class="field" id="ev-title" placeholder="What is it?" autocomplete="off" value="' + esc(draft.title) + '" aria-label="Event title">' +
     '<div class="chips">' + dayChips + '</div>' +
     '<div class="chips"><button class="chip-btn" data-action="draft-allday" aria-pressed="' + draft.allDay + '">All day</button>' +
@@ -828,6 +854,41 @@ function syncDraft() {
   var t = el('ev-title'), tm = el('ev-time');
   if (t) draft.title = t.value;
   if (tm && tm.value) draft.time = tm.value;
+}
+
+// Big view of one event. Events added on the frame can be edited here; Google events link to Google Calendar instead,
+// since the iCal feed is read-only, shown as a QR code to open on a phone.
+function eventDetail(e) {
+  var s = new Date(e.start), end = e.end ? new Date(e.end) : null, today = nowZ();
+  var day = sameDay(s, today) ? 'Today' : sameDay(s, addDays(today, 1)) ? 'Tomorrow' : DAYS[s.getDay()];
+  var when = day + ', ' + MONTHS[s.getMonth()] + ' ' + s.getDate() + ' · ' + (e.allDay ? 'All day' : hm(s) + (end && +end !== +s ? ' – ' + hm(end) : ''));
+  var cal = e.calendar ? e.calendar.charAt(0).toUpperCase() + e.calendar.slice(1) : 'Calendar';
+  var html = '<div class="ev-detail"><div class="info"><h3>' + esc(e.title) + '</h3><div class="when">' + when + '</div>' +
+    '<div class="meta"><i style="background:' + (e.color || CAL_COLORS[e.calendar] || CAL_COLORS.other) + '"></i>' + esc(cal) + (e.local ? ' · added on this screen' : '') + '</div>' +
+    (e.location ? '<div class="meta">📍 ' + esc(e.location) + '</div>' : '') +
+    (e.notes ? '<div class="notes">' + esc(e.notes) + '</div>' : '') + '</div>' +
+    (e.link ? '<div class="qr"><div id="ev-qr"></div>Scan to edit on your phone</div>' : '') + '</div>';
+  var actions = e.local
+    ? '<button class="btn danger" data-action="delete-event" data-id="' + e.id + '">Delete</button><button class="btn quiet" data-action="edit-event" data-id="' + e.id + '">Edit</button>'
+    : '';
+  openSheet(html + '<div class="actions">' + actions + '<button class="btn primary" data-action="close-sheet">Close</button></div>');
+  el('sheet').classList.add('wide');
+  if (e.link) drawQr(e.link);
+}
+// QR codes come from a small library, loaded the first time one is needed
+var qrLib = null;
+function drawQr(text) {
+  qrLib = qrLib || new Promise(function (ok, fail) {
+    var sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+    sc.onload = ok; sc.onerror = function () { qrLib = null; fail(); };
+    document.head.appendChild(sc);
+  });
+  qrLib.then(function () {
+    var box = el('ev-qr'); if (!box) return;
+    var q = qrcode(0, 'M'); q.addData(text); q.make();
+    box.innerHTML = q.createImgTag(6, 12);
+  }).catch(function () { var box = el('ev-qr'); if (box) box.parentNode.hidden = true; });
 }
 
 function mealSheet(i) {
@@ -855,13 +916,20 @@ document.addEventListener('click', function (ev) {
     if (!draft.title.trim()) { el('ev-title').focus(); return; }
     var d = addDays(nowZ(), draft.day), hmv = draft.time.split(':');
     var s = draft.allDay ? at(d, 0) : at(d, +hmv[0], +hmv[1]);
-    state.localEvents.push({ id: uid(), title: draft.title.trim(), start: wallStr(s), end: draft.allDay ? null : wallStr(new Date(+s + 3600000)), allDay: draft.allDay, calendar: draft.calendar });
+    var saved = { id: draft.id || uid(), title: draft.title.trim(), start: wallStr(s), end: draft.allDay ? null : wallStr(new Date(+s + (draft.length || 3600000))), allDay: draft.allDay, calendar: draft.calendar };
+    state.localEvents = state.localEvents.filter(function (x) { return x.id !== saved.id; }).concat([saved]);
     store.set('events', state.localEvents); closeSheet(); renderAll();
   }
-  else if (a === 'event') {
-    var e = state.localEvents.filter(function (x) { return x.id === id; })[0];
-    if (e) openSheet('<h3>' + esc(e.title) + '</h3><div class="count">' + DAYS[parseWall(e.start).getDay()] + (e.allDay ? ', all day' : ' at ' + hm(parseWall(e.start))) + '</div>' +
-      '<div class="actions"><button class="btn danger" data-action="delete-event" data-id="' + e.id + '">Delete event</button><button class="btn quiet" data-action="close-sheet">Close</button></div>');
+  else if (a === 'event') { var ev0 = shownEvents[t.getAttribute('data-key')]; if (ev0) eventDetail(ev0); }
+  else if (a === 'edit-event') {
+    var le = state.localEvents.filter(function (x) { return x.id === id; })[0];
+    if (le) {
+      var ls = parseWall(le.start), today0 = nowZ();
+      draft = { id: le.id, title: le.title, allDay: le.allDay, calendar: le.calendar,
+        day: Math.max(0, Math.round((at(ls, 0) - at(today0, 0)) / 86400000)),
+        time: le.allDay ? '18:00' : wallStr(ls).slice(11), length: le.end ? parseWall(le.end) - ls : 3600000 };
+      eventSheet();
+    }
   }
   else if (a === 'delete-event') { state.localEvents = state.localEvents.filter(function (x) { return x.id !== id; }); store.set('events', state.localEvents); closeSheet(); renderAll(); }
   else if (a === 'toggle-grocery') { toggleGrocery(id); renderAll(); }
