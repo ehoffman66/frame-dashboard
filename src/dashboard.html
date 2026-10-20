@@ -1132,7 +1132,7 @@ function pullMusic() {
   return spGet('state' + (sid ? '?device=' + encodeURIComponent(sid) : '')).then(function (j) {
     music.loaded = true;
     if (musicErr(j)) {
-      music.provider = j.provider || 'spotify';
+      music.provider = j.provider || 'spotify'; music.canSearch = j.provider !== 'sonos' || !!j.search;
       music.playing = j.playing; music.track = j.track; music.progress = j.progress; music.device = j.device; music.devices = j.devices || [];
     }
   }).catch(function () { music.loaded = true; music.err = 'Can\'t reach Spotify right now'; })
@@ -1197,9 +1197,9 @@ function renderMusic() {
   if (music.err) html += '<div class="music-msg err">' + esc(music.err) + '</div>';
   fill('np', html);
   var sonos = music.provider === 'sonos';
-  el('m-mine').textContent = sonos ? 'Sonos Favorites' : 'Our playlists';
+  el('m-mine').textContent = sonos ? 'Our music' : 'Our playlists';
   el('m-mine').setAttribute('aria-pressed', music.listTitle === 'mine' ? 'true' : 'false');
-  document.querySelector('[data-form="music-search"]').hidden = sonos; // Sonos plays Favorites; there's no search to play from
+  document.querySelector('[data-form="music-search"]').hidden = !music.canSearch; // with Sonos, search needs Spotify connected too
   fill('m-tiles', music.list.length ? music.list.map(function (p) {
     return '<button class="tile' + (p.uri === music.playingUri ? ' on' : '') + '" data-action="music-play" data-uri="' + esc(p.uri) + '">' +
       '<i' + (p.art ? ' style="background-image:url(\'' + esc(p.art) + '\')"' : '') + '></i><b>' + esc(p.name) + '</b><span>' + esc(p.by || '') + '</span></button>';
