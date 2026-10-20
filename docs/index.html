@@ -45,12 +45,13 @@ button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
 
+/* The panel is laid out at 1280x800 and zoomed to fill whatever screen it's on (fitPanel below). */
+body { display: flex; align-items: center; justify-content: center; }
 .app {
   box-sizing: border-box;
-  height: 100%;
-  max-width: 1280px;
-  max-height: 800px;
-  margin: 0 auto;
+  width: 1280px;
+  height: 800px;
+  flex: none;
   display: grid;
   grid-template-columns: 1fr 104px;
 }
@@ -351,6 +352,14 @@ body.night .night-veil { opacity: .72; }
 <div class="night-veil"></div>
 
 <script>
+// Scale the 1280x800 panel to the screen, so it fills a 1920x1200 tablet the same as an 800px frame.
+function fitPanel() {
+  var app = document.querySelector('.app');
+  app.style.zoom = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
+}
+fitPanel();
+window.addEventListener('resize', fitPanel);
+
 // ---- Settings: edit these, then reload the frame ----
 var CONFIG = {
   place: 'Charlotte',
