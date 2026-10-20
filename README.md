@@ -38,6 +38,7 @@ A tab rail on the right edge switches between six screens. After two minutes wit
 - **Calendar:** the next 7 days in columns, with arrows to page forward. "Add event" or the + under any day opens a form: title, day, time or all day, and which calendar.
 - **Groceries:** tap to check off, type to add, or use the quick-add chips. "Clear checked" empties what's been bought. Once connected, the list is the **Groceries** project in Todoist (see below).
 - **Meals:** dinner for each of the next 7 days. Tap a day to type one or pick from suggestions.
+- **Cocktails:** your Cocktail Journal app (CONFIG.cocktailsUrl) inside the dashboard, loaded when the tab first opens; waits 15 min before going back Home.
 - **To-do:** the household to-do list with who does each item. Checks reset each morning; tap and hold to remove one.
 - **Sports:** Charlotte FC and the Checkers side by side: record, next game, the next three after it, and the conference table. Charlotte FC shows win/draw/loss odds from the same model as the Charlotte FC Stretch Run board; the Checkers show the picks from the Checkers Stats Board. The numbers come from `sports.json` next to the page, which the frame re-reads every 15 minutes; the two routines that refresh those boards will write it (format in [sports-feed.md](sports-feed.md)). Until the file is reachable, the page uses the copy built into `SPORTS` in the script.
 
