@@ -1095,6 +1095,9 @@ function stopArt() {
 }
 function artClock() { el('art-clock').textContent = el('time').textContent + ' ' + el('ampm').textContent; }
 el('art').addEventListener('click', function (ev) { ev.stopPropagation(); stopArt(); });
+// With Fully Kiosk PLUS face/motion detection, someone looking at the screen counts as a touch: close the art and stay on the dashboard
+function seen() { lastTouch = Date.now(); if (art.on) stopArt(); }
+if (window.fully && fully.bind) { try { fully.bind('onMotion', 'seen();'); } catch (e) {} }
 if (CONFIG.artAfterMin) {
   loadArt();
   setInterval(function () {
