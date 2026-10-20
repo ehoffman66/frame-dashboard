@@ -16,6 +16,11 @@
 //   SPOTIFY_ID, SPOTIFY_SECRET   from your app at developer.spotify.com
 //   SPOTIFY_REFRESH              shown once by https://<worker>.workers.dev/spotify/login after you sign in
 // The frame then calls https://<worker>.workers.dev/<KEY>/spotify/... and never sees a Spotify login.
+//
+// Sonos (optional, preferred for the Music tab: Spotify often won't show Sonos speakers to apps): three more secrets
+//   SONOS_ID, SONOS_SECRET       the Key and Secret of your control integration at developer.sonos.com
+//   SONOS_REFRESH                shown once by https://<worker>.workers.dev/sonos/login after you sign in
+// With these set, /<KEY>/music/... controls the Sonos rooms and plays your Sonos Favorites; without them it uses Spotify.
 
 const DAY = 86400000;
 const CACHE_SEC = 300;
@@ -29,7 +34,11 @@ export default {
     // nothing until that value is saved as the SPOTIFY_REFRESH secret
     if (env.KEY && url.pathname === '/spotify/login') return spotifyLogin(url, env);
     if (env.KEY && url.pathname === '/spotify/callback') return spotifyCallback(url, env);
-    if (env.KEY && url.pathname.startsWith('/' + env.KEY + '/spotify/')) return spotify(request, url, env, cors);
+    if (env.KEY && url.pathname === '/sonos/login') return sonosLogin(url, env);
+    if (env.KEY && url.pathname === '/sonos/callback') return sonosCallback(url, env);
+    if (env.KEY && url.pathname.startsWith('/' + env.KEY + '/spotify/')) return spotify(request, url, env, cors, env.KEY.length + 10);
+    if (env.KEY && url.pathname.startsWith('/' + env.KEY + '/music/'))
+      return (env.SONOS_REFRESH ? sonos : spotify)(request, url, env, cors, env.KEY.length + 8);
     if (!env.KEY || url.pathname !== '/' + env.KEY) return new Response('Not found', { status: 404, headers: cors });
 
     const cache = caches.default, cacheKey = new Request(url.origin + url.pathname);
@@ -142,8 +151,8 @@ async function spotifyLogin(url, env) {
   }), 302);
 }
 
-async function spotify(request, url, env, cors) {
-  const action = url.pathname.slice(env.KEY.length + 10); // after /<KEY>/spotify/
+async function spotify(request, url, env, cors, skip) {
+  const action = url.pathname.slice(skip); // after /<KEY>/spotify/ or /<KEY>/music/
   if (!env.SPOTIFY_ID || !env.SPOTIFY_SECRET || !env.SPOTIFY_REFRESH) return json({ error: 'setup', message: 'Spotify isn\'t set up in the Worker yet' }, 200, cors);
   try {
     const body = request.method === 'POST' ? await request.json().catch(() => ({})) : {};
@@ -152,7 +161,7 @@ async function spotify(request, url, env, cors) {
       case 'state': {
         const [p, d] = await Promise.all([sp(env, 'GET', '/me/player?additional_types=episode'), sp(env, 'GET', '/me/player/devices')]);
         return json({
-          playing: !!(p && p.is_playing), track: slimTrack(p && p.item), progress: p ? p.progress_ms : 0,
+          provider: 'spotify', playing: !!(p && p.is_playing), track: slimTrack(p && p.item), progress: p ? p.progress_ms : 0,
           shuffle: !!(p && p.shuffle_state), device: p && p.device ? p.device.id : null,
           devices: ((d && d.devices) || []).map(x => ({ id: x.id, name: x.name, type: x.type, active: x.is_active, volume: x.volume_percent, canVolume: x.supports_volume !== false }))
         }, 200, cors);
@@ -177,6 +186,109 @@ async function spotify(request, url, env, cors) {
     return json({ error: 'unknown' }, 404, cors);
   } catch (e) {
     return json({ error: 'spotify', message: String(e.message || e) }, 200, cors);
+  }
+}
+
+// ---------- Sonos ----------
+// Sonos's cloud control API: rooms (groups), playback, volume and the household's Sonos Favorites.
+
+async function sonosOauth(env, params) {
+  const r = await fetch('https://api.sonos.com/login/v3/oauth/access', {
+    method: 'POST',
+    headers: { Authorization: 'Basic ' + btoa(env.SONOS_ID + ':' + env.SONOS_SECRET), 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+    body: new URLSearchParams(params)
+  });
+  return { r, j: await r.json().catch(() => ({})) };
+}
+async function sonosToken(env) {
+  if (globalThis.soToken && globalThis.soToken.exp > Date.now()) return globalThis.soToken.value;
+  const { r, j } = await sonosOauth(env, { grant_type: 'refresh_token', refresh_token: env.SONOS_REFRESH });
+  if (!r.ok) throw new Error('Sonos login failed (' + r.status + '); sign in again at /sonos/login');
+  globalThis.soToken = { value: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  return j.access_token;
+}
+async function so(env, method, path, body) {
+  const r = await fetch('https://api.ws.sonos.com/control/api/v1' + path, {
+    method, headers: { Authorization: 'Bearer ' + await sonosToken(env), 'Content-Type': 'application/json' },
+    body: method === 'POST' ? JSON.stringify(body || {}) : undefined
+  });
+  const text = await r.text(), j = text ? JSON.parse(text) : null;
+  if (!r.ok) throw new Error((j && (j.reason || j.errorCode)) || 'Sonos error ' + r.status);
+  return j;
+}
+async function household(env) {
+  if (globalThis.soHousehold) return globalThis.soHousehold;
+  const j = await so(env, 'GET', '/households');
+  if (!j.households || !j.households.length) throw new Error('No Sonos system found on this account');
+  return (globalThis.soHousehold = j.households[0].id);
+}
+
+async function sonosLogin(url, env) {
+  if (!env.SONOS_ID || !env.SONOS_SECRET) return page('Add the SONOS_ID and SONOS_SECRET secrets first, then reload this page.', 400);
+  return Response.redirect('https://api.sonos.com/login/v3/oauth?' + new URLSearchParams({
+    client_id: env.SONOS_ID, response_type: 'code', scope: 'playback-control-all',
+    redirect_uri: url.origin + '/sonos/callback', state: await sha('frame-sonos:' + env.KEY)
+  }), 302);
+}
+async function sonosCallback(url, env) {
+  if (url.searchParams.get('state') !== await sha('frame-sonos:' + env.KEY)) return page('This sign-in link has expired. Start again at /sonos/login.', 400);
+  if (url.searchParams.get('error')) return page('Sonos said: ' + url.searchParams.get('error').replace(/[<&]/g, ''), 400);
+  const { r, j } = await sonosOauth(env, { grant_type: 'authorization_code', code: url.searchParams.get('code') || '', redirect_uri: url.origin + '/sonos/callback' });
+  if (!r.ok || !j.refresh_token) return page('Sonos didn\'t accept the sign-in (' + String(j.error_description || j.error || r.status).replace(/[<&]/g, '') + '). Check SONOS_ID and SONOS_SECRET.', 400);
+  return page('<h2>Signed in to Sonos</h2><p>Copy this value, then in Cloudflare add a Secret named <b>SONOS_REFRESH</b> with it and click Deploy. Keep it private: it controls your speakers.</p>' +
+    '<textarea readonly onclick="this.select()" style="width:100%;height:120px;font:14px monospace">' + j.refresh_token + '</textarea>');
+}
+
+// Same answers as the Spotify version, so the Music tab works with either. Speakers are Sonos rooms (groups).
+async function sonos(request, url, env, cors, skip) {
+  const action = url.pathname.slice(skip);
+  try {
+    const body = request.method === 'POST' ? await request.json().catch(() => ({})) : {};
+    const hh = await household(env);
+    const g = body.device ? '/groups/' + encodeURIComponent(body.device) : null;
+    const need = () => { if (!g) throw new Error('Pick a speaker first'); return g; };
+    switch (action) {
+      case 'state': {
+        const gr = await so(env, 'GET', '/households/' + hh + '/groups');
+        const groups = gr.groups || [];
+        const info = await Promise.all(groups.map(x => Promise.all([
+          so(env, 'GET', '/groups/' + x.id + '/groupVolume').catch(() => null),
+          x.playbackState === 'PLAYBACK_STATE_PLAYING' || x.playbackState === 'PLAYBACK_STATE_PAUSED' ? so(env, 'GET', '/groups/' + x.id + '/playbackMetadata').catch(() => null) : null,
+          x.playbackState === 'PLAYBACK_STATE_PLAYING' ? so(env, 'GET', '/groups/' + x.id + '/playback').catch(() => null) : null
+        ])));
+        // What's on screen: the room picked on the frame if given, else the first one playing
+        const want = url.searchParams.get('device');
+        let i = groups.findIndex(x => x.id === want);
+        if (i < 0) i = groups.findIndex(x => x.playbackState === 'PLAYBACK_STATE_PLAYING');
+        const cur = i >= 0 ? groups[i] : null, meta = cur && info[i][1], pb = cur && info[i][2];
+        const tr = meta && meta.currentItem && meta.currentItem.track;
+        return json({
+          provider: 'sonos', playing: !!cur && cur.playbackState === 'PLAYBACK_STATE_PLAYING',
+          track: tr ? { name: tr.name || (meta.container && meta.container.name) || '', by: (tr.artist && tr.artist.name) || '', album: (tr.album && tr.album.name) || '',
+            art: tr.imageUrl || (meta.container && meta.container.imageUrl) || '', ms: tr.durationMillis || 0 } : null,
+          progress: pb ? pb.positionMillis || 0 : 0, device: cur ? cur.id : null,
+          devices: groups.map((x, k) => ({ id: x.id, name: x.name, active: x.playbackState === 'PLAYBACK_STATE_PLAYING', volume: info[k][0] ? info[k][0].volume : null, canVolume: true }))
+        }, 200, cors);
+      }
+      case 'playlists': {
+        const f = await so(env, 'GET', '/households/' + hh + '/favorites');
+        return json({ items: (f.items || []).map(x => ({ name: x.name, uri: x.id, art: x.imageUrl || '', by: x.description || (x.service && x.service.name) || '' })) }, 200, cors);
+      }
+      case 'search': return json({ items: [] }, 200, cors);
+      case 'play':
+        if (body.uri) await so(env, 'POST', need() + '/favorites', { favoriteId: body.uri, playOnCompletion: true, action: 'REPLACE' });
+        else await so(env, 'POST', need() + '/playback/play');
+        return json({}, 200, cors);
+      case 'pause': await so(env, 'POST', need() + '/playback/pause'); return json({}, 200, cors);
+      case 'next': await so(env, 'POST', need() + '/playback/skipToNextTrack'); return json({}, 200, cors);
+      case 'previous': await so(env, 'POST', need() + '/playback/skipToPreviousTrack'); return json({}, 200, cors);
+      case 'volume': await so(env, 'POST', need() + '/groupVolume', { volume: Math.max(0, Math.min(100, Math.round(+body.percent || 0))) }); return json({}, 200, cors);
+      case 'transfer': return json({}, 200, cors); // each room plays on its own; picking one just changes what the tab controls
+    }
+    return json({ error: 'unknown' }, 404, cors);
+  } catch (e) {
+    globalThis.soHousehold = null;
+    return json({ error: 'sonos', message: String(e.message || e) }, 200, cors);
   }
 }
 

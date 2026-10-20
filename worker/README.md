@@ -51,3 +51,12 @@ The Music tab plays Spotify on the Sonos speakers. Spotify only allows this on P
 3. **Sign in once.** On your computer or phone (not the tablet), open `https://frame-calendar.<your-subdomain>.workers.dev/spotify/login` and approve. The page shows a long value: add it as a Secret named `SPOTIFY_REFRESH`.
 
 That's it: the Music tab uses the calendar address the frame already has. If a Sonos room is missing from the speaker list, play something on it from the Spotify app once and it appears.
+
+## Sonos for the Music tab (recommended)
+
+Spotify often won't show Sonos speakers to apps, so the Music tab can talk to Sonos directly instead. It then lists every room, controls play/pause, skip and volume, and plays your **Sonos Favorites** (tap the heart on a playlist or station in the Sonos app to add one). Once these secrets are set, the tab uses Sonos instead of Spotify.
+
+1. **Make a Sonos integration.** Sign up free at <https://developer.sonos.com>, then *My Account* → *Integrations* → *New Control Integration*. Give it a name (`Frame dashboard`) and add a key.
+   - Redirect URI: `https://frame-calendar.<your-subdomain>.workers.dev/sonos/callback`. Save.
+2. **Copy its Key and Secret into the Worker** as Secrets named `SONOS_ID` and `SONOS_SECRET`, and deploy the latest [`calendar.js`](calendar.js).
+3. **Sign in once.** On your computer or phone, open `https://frame-calendar.<your-subdomain>.workers.dev/sonos/login`, sign in with your Sonos account and allow access. Add the long value it shows as a Secret named `SONOS_REFRESH`.

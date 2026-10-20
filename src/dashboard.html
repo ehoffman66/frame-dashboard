@@ -1037,7 +1037,7 @@ document.addEventListener('click', function (ev) {
     store.set('choreDone', state.choreDone); renderAll();
   }
   else if (a === 'music-toggle') musicAct(music.playing ? 'pause' : 'play', { device: speakerId() }, { playing: !music.playing });
-  else if (a === 'music-next' || a === 'music-prev') musicAct(a === 'music-next' ? 'next' : 'previous', {});
+  else if (a === 'music-next' || a === 'music-prev') musicAct(a === 'music-next' ? 'next' : 'previous', { device: speakerId() });
   else if (a === 'music-vol') setVolume(+t.getAttribute('data-step'));
   else if (a === 'music-speaker') pickSpeaker(t.getAttribute('data-name'));
   else if (a === 'music-play') musicAct('play', { uri: t.getAttribute('data-uri'), device: speakerId() }, { playing: true, playingUri: t.getAttribute('data-uri') });
@@ -1102,10 +1102,10 @@ function loadCalendar() {
     .catch(function () {});
 }
 
-// ---- Music: Spotify through the calendar Worker (it holds the Spotify login), played on the Sonos speakers ----
+// ---- Music: the Sonos rooms, through the calendar Worker (it holds the Sonos or Spotify login) ----
 var music = { loaded: false, setup: true, err: '', playing: false, track: null, progress: 0, device: null, devices: [],
-  pick: store.get('musicSpeaker', ''), list: [], listTitle: 'mine', listLoaded: false, playingUri: '', busyUntil: 0 };
-function spUrl(path) { var u = store.get('calendarUrl', '') || CONFIG.calendarUrl; return u ? u.replace(/\/+$/, '') + '/spotify/' + path : ''; }
+  pick: store.get('musicSpeaker', ''), provider: '', list: [], listTitle: 'mine', listLoaded: false, playingUri: '', busyUntil: 0 };
+function spUrl(path) { var u = store.get('calendarUrl', '') || CONFIG.calendarUrl; return u ? u.replace(/\/+$/, '') + '/music/' + path : ''; }
 function spGet(path) {
   var u = spUrl(path);
   if (!u) return Promise.resolve({ error: 'setup' });
@@ -1122,14 +1122,17 @@ function musicErr(j) {
 // The speaker music goes to: the one picked on the frame if Spotify can see it, else whatever is playing now
 function speaker() {
   var d = music.devices;
-  return d.filter(function (x) { return x.name === music.pick; })[0] || d.filter(function (x) { return x.active; })[0] || null;
+  return d.filter(function (x) { return x.name === music.pick; })[0] || d.filter(function (x) { return x.active; })[0] ||
+    (music.provider === 'sonos' ? d[0] : null) || null;
 }
 function speakerId() { var s = speaker(); return s ? s.id : undefined; }
 function pullMusic() {
   if (Date.now() < music.busyUntil) return Promise.resolve(); // let a tap settle before Spotify's state overwrites it
-  return spGet('state').then(function (j) {
+  var sid = speakerId();
+  return spGet('state' + (sid ? '?device=' + encodeURIComponent(sid) : '')).then(function (j) {
     music.loaded = true;
     if (musicErr(j)) {
+      music.provider = j.provider || 'spotify';
       music.playing = j.playing; music.track = j.track; music.progress = j.progress; music.device = j.device; music.devices = j.devices || [];
     }
   }).catch(function () { music.loaded = true; music.err = 'Can\'t reach Spotify right now'; })
@@ -1150,7 +1153,8 @@ function setVolume(step) {
 function pickSpeaker(name) {
   music.pick = name; store.set('musicSpeaker', name);
   var s = speaker();
-  if (s && music.playing && s.id !== music.device) musicAct('transfer', { device: s.id, play: true }, { device: s.id });
+  if (music.provider === 'sonos') { music.track = null; renderMusic(); pullMusic(); } // each room plays on its own; show the picked one
+  else if (s && music.playing && s.id !== music.device) musicAct('transfer', { device: s.id, play: true }, { device: s.id });
   else renderMusic();
 }
 function showList(j, title) {
@@ -1171,7 +1175,7 @@ var MUSIC_ICON = {
 function renderMusic() {
   if (!music.setup) {
     fill('np', '<div class="np-art">' + MUSIC_ICON.note + '</div><div class="np-ttl">Music</div>' +
-      '<div class="music-msg">Spotify isn\'t connected to the dashboard yet. Once it is, you can play your playlists on the Sonos speakers from here.</div>');
+      '<div class="music-msg">Music isn\'t connected to the dashboard yet. Once it is, you can play music on the Sonos speakers from here.</div>');
     fill('m-tiles', ''); return;
   }
   var t = music.track, s = speaker(), html = '';
@@ -1189,14 +1193,18 @@ function renderMusic() {
     ? '<div class="chips">' + music.devices.map(function (d) {
         return '<button class="chip-btn" data-action="music-speaker" data-name="' + esc(d.name) + '" aria-pressed="' + (!!s && s.id === d.id) + '">' + esc(d.name) + '</button>';
       }).join('') + '</div>'
-    : '<div class="music-msg">' + (music.loaded ? 'No speakers showing. Play something on a Sonos from the Spotify app once and it will appear here.' : '') + '</div>';
+    : '<div class="music-msg">' + (music.loaded && music.provider !== 'sonos' ? 'No speakers showing. Play something on a Sonos from the Spotify app once and it will appear here.' : '') + '</div>';
   if (music.err) html += '<div class="music-msg err">' + esc(music.err) + '</div>';
   fill('np', html);
+  var sonos = music.provider === 'sonos';
+  el('m-mine').textContent = sonos ? 'Sonos Favorites' : 'Our playlists';
   el('m-mine').setAttribute('aria-pressed', music.listTitle === 'mine' ? 'true' : 'false');
+  document.querySelector('[data-form="music-search"]').hidden = sonos; // Sonos plays Favorites; there's no search to play from
   fill('m-tiles', music.list.length ? music.list.map(function (p) {
     return '<button class="tile' + (p.uri === music.playingUri ? ' on' : '') + '" data-action="music-play" data-uri="' + esc(p.uri) + '">' +
       '<i' + (p.art ? ' style="background-image:url(\'' + esc(p.art) + '\')"' : '') + '></i><b>' + esc(p.name) + '</b><span>' + esc(p.by || '') + '</span></button>';
-  }).join('') : '<div class="music-msg">' + (music.listTitle === 'search' ? 'Nothing found.' : music.listLoaded ? '' : '') + '</div>');
+  }).join('') : '<div class="music-msg">' + (music.listTitle === 'search' ? 'Nothing found.' :
+    sonos ? 'No Sonos Favorites yet. In the Sonos app, tap the heart on a playlist or station and it shows up here.' : '') + '</div>');
 }
 
 function footer() {
