@@ -53,6 +53,15 @@ body { display: flex; align-items: center; justify-content: center; }
 .view-title h1 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 40px; letter-spacing: -1px; flex: 1; min-width: 0; }
 .eyebrow { font-size: 15px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
 
+/* Art slideshow when idle */
+.art { position: fixed; inset: 0; background: #000; cursor: pointer; }
+.art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 2.5s; }
+.art img.on { opacity: 1; }
+.art-cap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 60px 36px 24px; background: linear-gradient(transparent, rgba(0,0,0,.7)); color: #f3efe6; }
+.art-cap .t { font-family: var(--display); font-size: 24px; line-height: 1.2; }
+.art-cap .by { font-size: 16px; opacity: .75; margin-top: 4px; }
+.art-cap .clock { font-family: var(--display); font-size: 40px; white-space: nowrap; }
+
 /* Tab rail */
 .rail {
   background: var(--panel);
@@ -357,6 +366,7 @@ body.night .night-veil { opacity: .72; }
   </nav>
 </div>
 <div id="sheet-root" hidden><div class="sheet-veil" data-action="close-sheet"></div><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="art" id="art" hidden><img id="art-a" alt=""><img id="art-b" alt=""><div class="art-cap"><div><div class="t" id="art-title"></div><div class="by" id="art-by"></div></div><div class="clock" id="art-clock"></div></div></div>
 <div class="night-veil"></div>
 
 <script>
@@ -383,6 +393,8 @@ var CONFIG = {
   nightStart: 22,          // dim from 10pm
   nightEnd: 6.5,           // until 6:30am
   idleReturnSec: 120,      // go back to Home after this long without a touch
+  artAfterMin: 5,          // show the art slideshow after this long without a touch; 0 turns it off
+  artEverySec: 75,         // how long each painting stays up
   weatherEveryMin: 15,
   calendarEveryMin: 10
 };
@@ -1045,6 +1057,51 @@ function fullyBattery() {
   draw(); setInterval(draw, 60000);
 }
 startBattery();
+
+// ---- Art slideshow. Public-domain paintings from the Art Institute of Chicago, shown after CONFIG.artAfterMin idle; a tap closes it. ----
+var art = { list: [], on: false, front: 'art-a', timer: null, loading: false };
+function loadArt() {
+  if (art.loading) return; art.loading = true;
+  var params = { query: { bool: { must: [{ term: { is_public_domain: true } }, { term: { 'artwork_type_title.keyword': 'Painting' } }] } },
+    fields: 'id,title,artist_title,date_display,image_id,thumbnail', limit: 100, page: 1 + Math.floor(Math.random() * 10) };
+  var url = 'https://api.artic.edu/api/v1/artworks/search?params=' + encodeURIComponent(JSON.stringify(params));
+  fetch(url).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (j) {
+    // Landscape pictures only, so they fill the screen
+    art.list = (j.data || []).filter(function (a) { var t = a.thumbnail; return a.image_id && t && t.width > t.height * 1.15; })
+      .sort(function () { return Math.random() - .5; });
+  }).catch(function () {}).then(function () { art.loading = false; });
+}
+function artImg(a) { return 'https://www.artic.edu/iiif/2/' + a.image_id + '/full/1686,/0/default.jpg'; }
+function nextArt() {
+  if (!art.list.length) { loadArt(); return; }
+  var a = art.list.shift(), back = art.front === 'art-a' ? 'art-b' : 'art-a', img = el(back);
+  img.onload = function () {
+    if (!art.on) return;
+    img.className = 'on'; el(art.front).className = ''; art.front = back;
+    el('art-title').textContent = a.title || '';
+    el('art-by').textContent = [a.artist_title, a.date_display].filter(Boolean).join(', ');
+  };
+  img.onerror = function () { if (art.on) nextArt(); };
+  img.src = artImg(a);
+  if (art.list.length < 3) loadArt();
+}
+function startArt() {
+  art.on = true; el('art').hidden = false; artClock(); nextArt();
+  art.timer = setInterval(nextArt, CONFIG.artEverySec * 1000);
+}
+function stopArt() {
+  art.on = false; el('art').hidden = true; clearInterval(art.timer);
+  el('art-a').className = el('art-b').className = '';
+}
+function artClock() { el('art-clock').textContent = el('time').textContent + ' ' + el('ampm').textContent; }
+el('art').addEventListener('click', function (ev) { ev.stopPropagation(); stopArt(); });
+if (CONFIG.artAfterMin) {
+  loadArt();
+  setInterval(function () {
+    if (art.on) { artClock(); return; }
+    if (art.list.length && el('sheet-root').hidden && Date.now() - lastTouch > CONFIG.artAfterMin * 60000) startArt();
+  }, 15000);
+}
 
 // ---- Sports. Loaded from CONFIG.sportsUrl; this copy is the fallback until the file is reachable. Games drop off once played. ----
 var SPORTS = {
