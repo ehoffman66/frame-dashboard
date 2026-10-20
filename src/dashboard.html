@@ -452,6 +452,10 @@ if (!store.get('meals', null)) {
   state.meals[dayKey(addDays(t0, 3))] = 'Pizza night';
 }
 
+// Redraw a panel only when its content changed. Background refreshes land a few seconds after load;
+// swapping identical buttons under a finger mid-tap made that tap do nothing.
+function fill(id, html) { var n = el(id); if (n._html !== html) { n._html = html; n.innerHTML = html; } }
+
 // ---- Tabs and idle return ----
 function showTab(tab) {
   state.tab = tab;
@@ -531,7 +535,7 @@ function renderWeather(w) {
       '<div class="hl">' + Math.round(dly.temperature_2m_max[i]) + '° <i>' + Math.round(dly.temperature_2m_min[i]) + '°</i></div>' +
       '<div class="pp">' + (pp >= 20 ? pp + '%' : '') + '</div></div>';
   }
-  el('days').innerHTML = html;
+  fill('days', html);
 }
 
 function loadWeather() {
@@ -611,7 +615,7 @@ function renderHome() {
       return evRow({ key: e.key, title: e.title, start: e.start, allDay: true, calendar: e.calendar, color: e.color }, now).replace('All day', DAYS[new Date(e.start).getDay()].slice(0, 3));
     }).join('') + '</div>';
   }
-  el('agenda').innerHTML = html;
+  fill('agenda', html);
 
   var timed = eventsOn(events, now).filter(function (e) { return !e.allDay && new Date(e.end || e.start) > now; });
   var dinner = mealOn(now);
@@ -640,7 +644,7 @@ function renderCalendar() {
     if (list.length > 5) html += '<div class="more">+' + (list.length - 5) + ' more</div>';
     html += '<button class="add-here" data-action="add-event" data-day="' + i + '" aria-label="Add event on ' + DAYS[d.getDay()] + '">+</button></div>';
   }
-  el('week').innerHTML = html;
+  fill('week', html);
 }
 
 // ---- Groceries ----
@@ -798,7 +802,7 @@ function renderMeals() {
       '<span class="dish' + (dish ? '' : ' none') + '">' + (dish ? esc(dish) : 'Not planned') + '</span>' +
       '<span class="edit">' + (dish ? 'Change' : 'Plan dinner') + '</span></button>';
   }
-  el('meals').innerHTML = html;
+  fill('meals', html);
 }
 
 // ---- Chores ----
@@ -1120,7 +1124,7 @@ function renderSports() {
   } else html += '<div class="game"><div class="vs">Regular season over</div></div>';
   html += '<div class="eyebrow">East top 5 · points</div>' + tableRows(c.table, 'Charlotte') +
     '<div class="asof">' + esc(c.leaders) + '<br>' + esc(c.asof) + '</div>';
-  el('clt').innerHTML = html;
+  fill('clt', html);
 
   var k = SPORTS.chk, kg = upcomingGames(k.games);
   html = '<div class="team-h"><h2>Checkers</h2><span class="rec">' + k.rec + '</span></div>' +
@@ -1136,7 +1140,7 @@ function renderSports() {
   }
   html += '<div class="eyebrow">Atlantic · points %</div>' + tableRows(k.table, 'Charlotte') +
     '<div class="asof">' + esc(k.leaders) + '<br>' + esc(k.asof) + '</div>';
-  el('chk').innerHTML = html;
+  fill('chk', html);
 }
 
 function loadSports() {
