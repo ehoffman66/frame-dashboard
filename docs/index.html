@@ -143,7 +143,7 @@ body { display: flex; align-items: center; justify-content: center; }
 .agenda { display: flex; flex-direction: column; gap: 20px; min-height: 0; overflow: hidden; }
 .group h2 { margin: 0 0 8px; display: flex; justify-content: space-between; }
 .group h2 b { color: var(--lamp); font-weight: 600; }
-.ev { display: grid; grid-template-columns: 96px 6px 1fr; gap: 0 14px; align-items: center; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); background: none; width: 100%; text-align: left; }
+.ev { display: grid; grid-template-columns: 112px 6px 1fr; gap: 0 14px; align-items: center; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); background: none; width: 100%; text-align: left; }
 .ev:last-child { border-bottom: 0; }
 .ev .when { font-size: 18px; color: var(--muted); text-align: right; white-space: nowrap; }
 .ev .dot { width: 6px; height: 28px; border-radius: 3px; }
@@ -651,7 +651,8 @@ function renderHome() {
   var later = events.filter(function (e) { var s = new Date(e.start); return s > at(addDays(now, 1), 23, 59) && s < addDays(now, 7); });
   if (later.length) {
     html += '<div class="group"><h2 class="eyebrow">Later this week</h2>' + later.slice(0, 2).map(function (e) {
-      return evRow({ key: e.key, title: e.title, start: e.start, allDay: true, calendar: e.calendar, color: e.color }, now).replace('All day', DAYS[new Date(e.start).getDay()].slice(0, 3));
+      var s = new Date(e.start), when = DAYS[s.getDay()].slice(0, 3) + (e.allDay ? '' : ' ' + hm(s));
+      return evRow({ key: e.key, title: e.title, start: e.start, allDay: true, calendar: e.calendar, color: e.color }, now).replace('All day', when);
     }).join('') + '</div>';
   }
   fill('agenda', html);
