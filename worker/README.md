@@ -48,6 +48,6 @@ The Music tab plays Spotify on the Sonos speakers. Spotify only allows this on P
    - Redirect URI: `https://frame-calendar.<your-subdomain>.workers.dev/spotify/callback` (click *Add*).
    - Tick *Web API*, accept the terms, and click *Save*.
 2. **Copy its two values into the Worker.** In the app's *Settings*, copy the **Client ID** and **Client secret** (*View client secret*). In Cloudflare add them as Secrets named `SPOTIFY_ID` and `SPOTIFY_SECRET`, then deploy the latest [`calendar.js`](calendar.js).
-3. **Sign in once.** On your computer or phone (not the tablet), open `https://frame-calendar.<your-subdomain>.workers.dev/<KEY>/spotify/login` and approve. The page shows a long value: add it as a Secret named `SPOTIFY_REFRESH`.
+3. **Sign in once.** On your computer or phone (not the tablet), open `https://frame-calendar.<your-subdomain>.workers.dev/spotify/login` and approve. The page shows a long value: add it as a Secret named `SPOTIFY_REFRESH`.
 
 That's it: the Music tab uses the calendar address the frame already has. If a Sonos room is missing from the speaker list, play something on it from the Spotify app once and it appears.
