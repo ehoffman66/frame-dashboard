@@ -319,17 +319,17 @@ body.night .night-veil { opacity: .72; }
     </section>
 
     <section class="view" id="view-chores" hidden>
-      <div class="view-title"><h1>Chores today</h1><span class="count" id="c-count"></span></div>
+      <div class="view-title"><h1>To-do</h1><span class="count" id="c-count"></span></div>
       <div class="split">
         <div class="list" id="c-list"></div>
         <div class="side">
           <form class="add-row" data-form="chore">
-            <input class="field" id="c-input" placeholder="Add a chore" autocomplete="off" aria-label="Chore">
+            <input class="field" id="c-input" placeholder="Add a to-do" autocomplete="off" aria-label="To-do">
             <button class="btn primary" type="submit">Add</button>
           </form>
           <div class="eyebrow">Who</div>
           <div class="chips" id="c-who"></div>
-          <div class="count" style="margin-top:auto">Checks reset every morning. Tap and hold a chore to remove it.</div>
+          <div class="count" style="margin-top:auto">Checks reset every morning. Tap and hold an item to remove it.</div>
         </div>
       </div>
     </section>
@@ -346,7 +346,7 @@ body.night .night-veil { opacity: .72; }
     <button class="tab" role="tab" data-tab="meals" aria-selected="false">
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h24a12 12 0 0 1-24 0zM10 10c0-2 2-2 2-4M16 10c0-2 2-2 2-4M22 10c0-2 2-2 2-4"/></svg>Meals</button>
     <button class="tab" role="tab" data-tab="chores" aria-selected="false">
-      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="22" height="22" rx="5"/><path d="m11 16 4 4 7-8"/></svg>Chores<span class="badge" id="c-badge" hidden></span></button>
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="22" height="22" rx="5"/><path d="m11 16 4 4 7-8"/></svg>To-do<span class="badge" id="c-badge" hidden></span></button>
     <button class="tab" role="tab" data-tab="sports" aria-selected="false">
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><circle cx="16" cy="16" r="11"/><path d="m16 10 5 3.6-1.9 5.9h-6.2L11 13.6z"/><path d="M16 5v5M26.5 12.6 21 13.6M22.5 25l-3.4-5.5M9.5 25l3.4-5.5M5.5 12.6l5.5 1"/></svg>Sports</button>
     <div class="spacer"></div>
@@ -803,7 +803,7 @@ function renderChores() {
   el('c-list').innerHTML = state.chores.length ? state.chores.map(function (c) {
     var done = doneIds.indexOf(c.id) > -1;
     return '<button class="row' + (done ? ' done' : '') + '" data-action="toggle-chore" data-id="' + c.id + '"><span class="box"></span><span class="label">' + esc(c.name) + '</span><span class="who">' + esc(c.who) + '</span></button>';
-  }).join('') : '<div class="empty">No chores yet</div>';
+  }).join('') : '<div class="empty">Nothing to do yet</div>';
   var n = state.chores.filter(function (c) { return doneIds.indexOf(c.id) > -1; }).length;
   el('c-count').textContent = n + ' of ' + state.chores.length + ' done';
   el('c-who').innerHTML = CONFIG.people.map(function (p) {
