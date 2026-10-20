@@ -14,7 +14,7 @@
 //
 // Spotify (optional, for the Music tab): three more secrets, set up as described in the README
 //   SPOTIFY_ID, SPOTIFY_SECRET   from your app at developer.spotify.com
-//   SPOTIFY_REFRESH              shown once by https://<worker>.workers.dev/<KEY>/spotify/login after you sign in
+//   SPOTIFY_REFRESH              shown once by https://<worker>.workers.dev/spotify/login after you sign in
 // The frame then calls https://<worker>.workers.dev/<KEY>/spotify/... and never sees a Spotify login.
 
 const DAY = 86400000;
@@ -25,6 +25,9 @@ export default {
     const url = new URL(request.url);
     const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Cache-Control': 'no-store' };
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
+    // Sign-in needs no KEY: it only ever shows a login to the person who just signed in, and the Worker uses
+    // nothing until that value is saved as the SPOTIFY_REFRESH secret
+    if (env.KEY && url.pathname === '/spotify/login') return spotifyLogin(url, env);
     if (env.KEY && url.pathname === '/spotify/callback') return spotifyCallback(url, env);
     if (env.KEY && url.pathname.startsWith('/' + env.KEY + '/spotify/')) return spotify(request, url, env, cors);
     if (!env.KEY || url.pathname !== '/' + env.KEY) return new Response('Not found', { status: 404, headers: cors });
@@ -92,7 +95,7 @@ async function spotifyToken(env) {
     headers: { Authorization: 'Basic ' + btoa(env.SPOTIFY_ID + ':' + env.SPOTIFY_SECRET), 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: env.SPOTIFY_REFRESH })
   });
-  if (!r.ok) throw new Error('Spotify login failed (' + r.status + '); sign in again at /<KEY>/spotify/login');
+  if (!r.ok) throw new Error('Spotify login failed (' + r.status + '); sign in again at /spotify/login');
   const j = await r.json();
   globalThis.spToken = { value: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
   return j.access_token;
@@ -117,9 +120,9 @@ function slimTrack(item) {
 }
 function slimList(p) { return p && { name: p.name, uri: p.uri, art: p.images && p.images.length ? p.images[p.images.length > 1 ? 1 : 0].url : '', by: p.owner ? p.owner.display_name : (p.artists || []).map(a => a.name).join(', ') }; }
 
-// /<KEY>/spotify/login and /spotify/callback: the one-time sign-in that produces SPOTIFY_REFRESH
+// /spotify/login and /spotify/callback: the one-time sign-in that produces SPOTIFY_REFRESH
 async function spotifyCallback(url, env) {
-  if (url.searchParams.get('state') !== await sha('frame-spotify:' + env.KEY)) return page('This sign-in link has expired. Start again from your /spotify/login address.', 400);
+  if (url.searchParams.get('state') !== await sha('frame-spotify:' + env.KEY)) return page('This sign-in link has expired. Start again at /spotify/login.', 400);
   if (url.searchParams.get('error')) return page('Spotify said: ' + url.searchParams.get('error').replace(/[<&]/g, ''), 400);
   const r = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
@@ -132,14 +135,15 @@ async function spotifyCallback(url, env) {
     '<textarea readonly onclick="this.select()" style="width:100%;height:120px;font:14px monospace">' + j.refresh_token + '</textarea>');
 }
 
+async function spotifyLogin(url, env) {
+  if (!env.SPOTIFY_ID || !env.SPOTIFY_SECRET) return page('Add the SPOTIFY_ID and SPOTIFY_SECRET secrets first, then reload this page.', 400);
+  return Response.redirect('https://accounts.spotify.com/authorize?' + new URLSearchParams({
+    response_type: 'code', client_id: env.SPOTIFY_ID, scope: SCOPES, redirect_uri: redirectUri(url), state: await sha('frame-spotify:' + env.KEY)
+  }), 302);
+}
+
 async function spotify(request, url, env, cors) {
   const action = url.pathname.slice(env.KEY.length + 10); // after /<KEY>/spotify/
-  if (action === 'login') {
-    if (!env.SPOTIFY_ID || !env.SPOTIFY_SECRET) return page('Add the SPOTIFY_ID and SPOTIFY_SECRET secrets first, then reload this page.', 400);
-    return Response.redirect('https://accounts.spotify.com/authorize?' + new URLSearchParams({
-      response_type: 'code', client_id: env.SPOTIFY_ID, scope: SCOPES, redirect_uri: redirectUri(url), state: await sha('frame-spotify:' + env.KEY)
-    }), 302);
-  }
   if (!env.SPOTIFY_ID || !env.SPOTIFY_SECRET || !env.SPOTIFY_REFRESH) return json({ error: 'setup', message: 'Spotify isn\'t set up in the Worker yet' }, 200, cors);
   try {
     const body = request.method === 'POST' ? await request.json().catch(() => ({})) : {};
