@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Art</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400&family=Figtree:wght@400&display=swap">
+<style>
+/* Full-screen public-domain paintings for Fully Kiosk's screensaver. Fully closes it when it sees a face. */
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 2.5s; }
+img.on { opacity: 1; }
+.cap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 60px 36px 24px; background: linear-gradient(transparent, rgba(0,0,0,.7)); color: #f3efe6; font-family: Figtree, sans-serif; }
+.t { font-family: "Bricolage Grotesque", sans-serif; font-size: 24px; line-height: 1.2; }
+.by { font-size: 16px; opacity: .75; margin-top: 4px; }
+.clock { font-family: "Bricolage Grotesque", sans-serif; font-size: 40px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<img id="a" alt=""><img id="b" alt="">
+<div class="cap"><div><div class="t" id="title"></div><div class="by" id="by"></div></div><div class="clock" id="clock"></div></div>
+<script>
+// ?every=75 sets seconds per painting
+var EVERY = (+new URLSearchParams(location.search).get('every') || 75) * 1000;
+var list = [], front = 'a', loading = false;
+function el(id) { return document.getElementById(id); }
+
+// Landscape public-domain paintings from the Art Institute of Chicago's open API
+function load() {
+  if (loading) return; loading = true;
+  var params = { query: { bool: { must: [{ term: { is_public_domain: true } }, { term: { 'artwork_type_title.keyword': 'Painting' } }] } },
+    fields: 'id,title,artist_title,date_display,image_id,thumbnail', limit: 100, page: 1 + Math.floor(Math.random() * 10) };
+  return fetch('https://api.artic.edu/api/v1/artworks/search?params=' + encodeURIComponent(JSON.stringify(params)))
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) {
+      list = (j.data || []).filter(function (a) { var t = a.thumbnail; return a.image_id && t && t.width > t.height * 1.15; })
+        .sort(function () { return Math.random() - .5; });
+    })
+    .catch(function () {})
+    .then(function () { loading = false; });
+}
+
+function next() {
+  if (!list.length) { load().then(next); return; }
+  var a = list.shift(), back = front === 'a' ? 'b' : 'a', img = el(back);
+  img.onload = function () {
+    img.className = 'on'; el(front).className = ''; front = back;
+    el('title').textContent = a.title || '';
+    el('by').textContent = [a.artist_title, a.date_display].filter(Boolean).join(', ');
+  };
+  img.onerror = next;
+  img.src = 'https://www.artic.edu/iiif/2/' + a.image_id + '/full/1686,/0/default.jpg';
+  if (list.length < 3) load();
+}
+
+function clock() {
+  el('clock').textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+}
+
+clock(); setInterval(clock, 15000);
+load().then(next);
+setInterval(next, EVERY);
+</script>
+</body>
+</html>
