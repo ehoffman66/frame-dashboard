@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-18T12:13:14.832Z",
+  "updated": "2026-10-20T12:16:47.648Z",
   "clt": {
     "asof": "MLS standings through Oct 17",
     "rec": "13-9-8",
@@ -78,10 +78,10 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Oct 17",
+    "asof": "AHL stats through Oct 20",
     "rec": "4-2-0",
     "pts": 8,
-    "place": "2nd in the Atlantic",
+    "place": "1st in the Atlantic",
     "last": "Won 4-2 vs Hartford, Oct 17",
     "leaders": "Nate Bastian 1 goal, 4 assists · Jack Devine 3 goals, 1 assist",
     "games": [
@@ -123,20 +123,20 @@
     ],
     "table": [
       [
-        "Hershey",
-        ".750"
-      ],
-      [
         "Charlotte",
         ".667"
       ],
       [
+        "Hershey",
+        ".667"
+      ],
+      [
         "Wilkes-Barre/Scranton",
-        ".500"
+        ".583"
       ],
       [
         "Lehigh Valley",
-        ".500"
+        ".583"
       ],
       [
         "Springfield",
@@ -148,7 +148,7 @@
       ],
       [
         "Providence",
-        ".200"
+        ".286"
       ]
     ]
   }
