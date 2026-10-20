@@ -9,9 +9,10 @@
 <style>
 /* Full-screen public-domain paintings for Fully Kiosk's screensaver. Fully closes it when it sees a face. */
 html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 2.5s; }
+img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2.5s; }
 img.on { opacity: 1; }
-.cap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 60px 36px 24px; background: linear-gradient(transparent, rgba(0,0,0,.7)); color: #f3efe6; font-family: Figtree, sans-serif; }
+.cap { display: none; }
+.caption .cap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 60px 36px 24px; background: linear-gradient(transparent, rgba(0,0,0,.7)); color: #f3efe6; font-family: Figtree, sans-serif; }
 .t { font-family: "Bricolage Grotesque", sans-serif; font-size: 24px; line-height: 1.2; }
 .by { font-size: 16px; opacity: .75; margin-top: 4px; }
 .clock { font-family: "Bricolage Grotesque", sans-serif; font-size: 40px; white-space: nowrap; }
@@ -21,20 +22,32 @@ img.on { opacity: 1; }
 <img id="a" alt=""><img id="b" alt="">
 <div class="cap"><div><div class="t" id="title"></div><div class="by" id="by"></div></div><div class="clock" id="clock"></div></div>
 <script>
-// ?every=75 sets seconds per painting
-var EVERY = (+new URLSearchParams(location.search).get('every') || 75) * 1000;
+// ?every=75 sets seconds per painting; ?caption=1 shows the title, artist and time (off by default: just the art)
+var q = new URLSearchParams(location.search);
+var EVERY = (+q.get('every') || 75) * 1000;
+if (q.get('caption')) document.body.className = 'caption';
 var list = [], front = 'a', loading = false;
 function el(id) { return document.getElementById(id); }
 
-// Landscape public-domain paintings from the Art Institute of Chicago's open API
-function load() {
-  if (loading) return; loading = true;
-  var params = { query: { bool: { must: [{ term: { is_public_domain: true } }, { term: { 'artwork_type_title.keyword': 'Painting' } }] } },
-    fields: 'id,title,artist_title,date_display,image_id,thumbnail', limit: 100, page: 1 + Math.floor(Math.random() * 10) };
+// Modern public-domain paintings (1900 on: Fauvism, Cubism, early abstraction; about 80 in all) from the Art Institute of Chicago's
+// open API. Work from after the late 1920s is still under copyright, so it isn't offered at full size.
+// Landscape pictures only, so filling the screen crops just a little off the top and bottom.
+var pages = 1;
+function query(page) {
+  var params = { query: { bool: { must: [
+      { term: { is_public_domain: true } },
+      { term: { 'artwork_type_title.keyword': 'Painting' } },
+      { range: { date_start: { gte: 1900 } } }] } },
+    fields: 'id,title,artist_title,date_display,image_id,thumbnail', limit: 100, page: page };
   return fetch('https://api.artic.edu/api/v1/artworks/search?params=' + encodeURIComponent(JSON.stringify(params)))
-    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+}
+function load() {
+  if (loading) return Promise.resolve(); loading = true;
+  return query(1 + Math.floor(Math.random() * pages))
     .then(function (j) {
-      list = (j.data || []).filter(function (a) { var t = a.thumbnail; return a.image_id && t && t.width > t.height * 1.15; })
+      if (j.pagination) pages = Math.max(1, j.pagination.total_pages || 1);
+      list = (j.data || []).filter(function (a) { var t = a.thumbnail, r = t && t.width / t.height; return a.image_id && r > 1.15 && r < 2.2; })
         .sort(function () { return Math.random() - .5; });
     })
     .catch(function () {})
@@ -42,7 +55,7 @@ function load() {
 }
 
 function next() {
-  if (!list.length) { load().then(next); return; }
+  if (!list.length) { load(); return; } // the next tick tries again once the list has loaded
   var a = list.shift(), back = front === 'a' ? 'b' : 'a', img = el(back);
   img.onload = function () {
     img.className = 'on'; el(front).className = ''; front = back;
