@@ -209,12 +209,15 @@ async function sonosToken(env) {
   globalThis.soToken = { value: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
   return j.access_token;
 }
-async function so(env, method, path, body) {
+async function so(env, method, path, body, retried) {
   const r = await fetch('https://api.ws.sonos.com/control/api/v1' + path, {
     method, headers: { Authorization: 'Bearer ' + await sonosToken(env), 'Content-Type': 'application/json' },
     body: method === 'POST' ? JSON.stringify(body || {}) : undefined
   });
+  // Sonos can drop an access token before it says it expires; get a fresh one and try once more
+  if (r.status === 401 && !retried) { globalThis.soToken = null; return so(env, method, path, body, true); }
   const text = await r.text(), j = text ? JSON.parse(text) : null;
+  if (r.status === 401) throw new Error('Sonos refused the dashboard\'s access (401). Sign in again at /sonos/login and save the new SONOS_REFRESH');
   if (!r.ok) throw new Error((j && (j.reason || j.errorCode)) || 'Sonos error ' + r.status);
   return j;
 }
