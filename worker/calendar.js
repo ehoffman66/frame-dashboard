@@ -133,6 +133,28 @@ async function spotifyLists(env) {
   const j = await sp(env, 'GET', '/me/playlists?limit=50');
   return (j.items || []).filter(Boolean).map(slimList);
 }
+// The songs in a Spotify playlist or album, or an artist's top songs
+async function spotifyTracks(env, uri) {
+  const [, type, id] = uri.split(':');
+  const song = (t, art) => t && { name: t.name, by: (t.artists || []).map(a => a.name).join(', '), ms: t.duration_ms, uri: t.uri,
+    art: art || ((t.album && t.album.images && t.album.images.length) ? t.album.images[t.album.images.length - 1].url : '') };
+  if (type === 'playlist') {
+    const [p, t] = await Promise.all([sp(env, 'GET', '/playlists/' + id + '?fields=name,images,owner(display_name)'), sp(env, 'GET', '/playlists/' + id + '/tracks?limit=100')]);
+    return { name: p.name, art: p.images && p.images.length ? p.images[0].url : '', by: p.owner ? p.owner.display_name : '', fromIndex: true,
+      items: (t.items || []).map(x => song(x.track)).filter(Boolean) };
+  }
+  if (type === 'album') {
+    const a = await sp(env, 'GET', '/albums/' + id);
+    const art = a.images && a.images.length ? a.images[a.images.length - 1].url : '';
+    return { name: a.name, art: a.images && a.images.length ? a.images[0].url : '', by: (a.artists || []).map(x => x.name).join(', '), fromIndex: true,
+      items: ((a.tracks && a.tracks.items) || []).map(x => song(x, art)) };
+  }
+  if (type === 'artist') {
+    const [a, t] = await Promise.all([sp(env, 'GET', '/artists/' + id), sp(env, 'GET', '/artists/' + id + '/top-tracks?market=US')]);
+    return { name: a.name, art: a.images && a.images.length ? a.images[0].url : '', by: 'Top songs', fromIndex: false, items: (t.tracks || []).map(x => song(x)) };
+  }
+  return { name: '', items: [] };
+}
 async function spotifySearch(env, q) {
   const j = await sp(env, 'GET', '/search?type=playlist,album,artist&limit=8&q=' + encodeURIComponent(q));
   return [].concat((j.playlists && j.playlists.items) || [], (j.albums && j.albums.items) || [], (j.artists && j.artists.items) || []).filter(Boolean).map(slimList);
@@ -177,7 +199,11 @@ async function spotify(request, url, env, cors, skip) {
       }
       case 'playlists': return json({ items: await spotifyLists(env) }, 200, cors);
       case 'search': return json({ items: await spotifySearch(env, url.searchParams.get('q') || '') }, 200, cors);
-      case 'play': return json(await sp(env, 'PUT', '/me/player/play' + dev, body.uri ? { context_uri: body.uri } : undefined) || {}, 200, cors);
+      case 'tracks': return json(await spotifyTracks(env, url.searchParams.get('uri') || ''), 200, cors);
+      case 'play': {
+        const u = body.uri, play = !u ? undefined : /^spotify:track:/.test(u) ? { uris: [u] } : body.index ? { context_uri: u, offset: { position: +body.index } } : { context_uri: u };
+        return json(await sp(env, 'PUT', '/me/player/play' + dev, play) || {}, 200, cors);
+      }
       case 'pause': return json(await sp(env, 'PUT', '/me/player/pause' + dev) || {}, 200, cors);
       case 'next': return json(await sp(env, 'POST', '/me/player/next' + dev) || {}, 200, cors);
       case 'previous': return json(await sp(env, 'POST', '/me/player/previous' + dev) || {}, 200, cors);
@@ -220,6 +246,25 @@ async function so(env, method, path, body, retried) {
   if (r.status === 401) throw new Error('Sonos refused the dashboard\'s access (401). Sign in again at /sonos/login and save the new SONOS_REFRESH');
   if (!r.ok) throw new Error((j && (j.reason || j.errorCode)) || 'Sonos error ' + r.status);
   return j;
+}
+// A Spotify link (spotify:playlist:ID and the like) from anything that mentions one, even URL-encoded
+function spotifyUri(text) {
+  const m = String(text).match(/spotify(?::|%3a)(playlist|album|track|artist)(?::|%3a)([A-Za-z0-9]{22})/i);
+  return m ? 'spotify:' + m[1].toLowerCase() + ':' + m[2] : '';
+}
+async function spotifyArt(env, tr) {
+  const key = (tr.name || '') + '|' + ((tr.artist && tr.artist.name) || '');
+  const cache = globalThis.spArt || (globalThis.spArt = {});
+  if (key in cache) return cache[key];
+  const id = spotifyUri(JSON.stringify(tr.id || ''));
+  let t = null;
+  if (/^spotify:track:/.test(id)) t = await sp(env, 'GET', '/tracks/' + id.split(':')[2]);
+  else {
+    const j = await sp(env, 'GET', '/search?type=track&limit=1&q=' + encodeURIComponent('track:' + tr.name + (tr.artist && tr.artist.name ? ' artist:' + tr.artist.name : '')));
+    t = j.tracks && j.tracks.items && j.tracks.items[0];
+  }
+  const imgs = (t && t.album && t.album.images) || [];
+  return (cache[key] = imgs.length ? imgs[0].url : '');
 }
 function spotifyOn(env) { return !!(env.SPOTIFY_ID && env.SPOTIFY_SECRET && env.SPOTIFY_REFRESH); }
 // The Spotify account Sonos uses, from any favorite that came from Spotify
@@ -285,10 +330,16 @@ async function sonos(request, url, env, cors, skip) {
         if (i < 0) i = groups.findIndex(x => x.playbackState === 'PLAYBACK_STATE_PLAYING');
         const cur = i >= 0 ? groups[i] : null, meta = cur && info[i][1], pb = cur && info[i][2];
         const tr = meta && meta.currentItem && meta.currentItem.track;
+        const nx = meta && meta.nextItem && meta.nextItem.track;
+        // Sonos often hands back album art on the speaker's own home address, which the https page can't load; ask Spotify instead
+        let art = [tr && tr.imageUrl, meta && meta.container && meta.container.imageUrl].find(u => u && /^https:/.test(u)) || '';
+        if (tr && !art && spotifyOn(env)) art = await spotifyArt(env, tr).catch(() => '');
         return json({
           provider: 'sonos', search: spotifyOn(env), playing: !!cur && cur.playbackState === 'PLAYBACK_STATE_PLAYING',
           track: tr ? { name: tr.name || (meta.container && meta.container.name) || '', by: (tr.artist && tr.artist.name) || '', album: (tr.album && tr.album.name) || '',
-            art: tr.imageUrl || (meta.container && meta.container.imageUrl) || '', ms: tr.durationMillis || 0 } : null,
+            art, ms: tr.durationMillis || 0 } : null,
+          context: meta && meta.container ? spotifyUri(JSON.stringify(meta.container.id || '')) : '',
+          next: nx ? { name: nx.name || '', by: (nx.artist && nx.artist.name) || '' } : null,
           progress: pb ? pb.positionMillis || 0 : 0, device: cur ? cur.id : null,
           devices: groups.map((x, k) => ({ id: x.id, name: x.name, active: x.playbackState === 'PLAYBACK_STATE_PLAYING', volume: info[k][0] ? info[k][0].volume : null, canVolume: true }))
         }, 200, cors);
@@ -301,11 +352,13 @@ async function sonos(request, url, env, cors, skip) {
           spotifyOn(env) ? spotifyLists(env).catch(() => []) : []
         ]);
         globalThis.soSpotify = spotifyAccount(f.items) || globalThis.soSpotify;
-        const items = (f.items || []).map(x => ({ name: x.name, uri: 'fav:' + x.id, art: x.imageUrl || '', by: x.description || (x.service && x.service.name) || 'Favorite' }))
+        const items = (f.items || []).map(x => ({ name: x.name, uri: 'fav:' + x.id, open: spotifyUri(JSON.stringify((x.resource && x.resource.id) || '')),
+            art: x.imageUrl || '', by: x.description || (x.service && x.service.name) || 'Favorite' }))
           .concat(((pl && pl.playlists) || []).map(x => ({ name: x.name, uri: 'sonospl:' + x.id, art: '', by: 'Sonos playlist' })))
           .concat(sp.map(x => ({ ...x, by: 'Spotify' + (x.by ? ' · ' + x.by : '') })));
         return json({ items }, 200, cors);
       }
+      case 'tracks': return json(await spotifyTracks(env, url.searchParams.get('uri') || ''), 200, cors);
       case 'search': {
         if (!spotifyOn(env)) return json({ items: [] }, 200, cors);
         return json({ items: await spotifySearch(env, url.searchParams.get('q') || '') }, 200, cors);
@@ -320,9 +373,11 @@ async function sonos(request, url, env, cors, skip) {
           globalThis.soSpotify = acct;
           const type = u.split(':')[1].toUpperCase();
           await so(env, 'POST', need() + '/playback/content', {
-            type: type === 'ARTIST' ? 'ARTIST' : type === 'ALBUM' ? 'ALBUM' : 'PLAYLIST',
-            id: { objectId: u, serviceId: acct.serviceId, accountId: acct.accountId }, playbackAction: 'PLAY', playModes: {}
+            type: type === 'ARTIST' ? 'ARTIST' : type === 'ALBUM' ? 'ALBUM' : type === 'TRACK' ? 'TRACK' : 'PLAYLIST',
+            id: { objectId: u, serviceId: acct.serviceId, accountId: acct.accountId }, playbackAction: 'PLAY', playModes: body.index ? { shuffle: false } : {}
           }).catch(e => { throw new Error('Sonos wouldn\'t play that from here (' + e.message + '). Add it to Sonos Favorites to play it'); });
+          // Start partway into a playlist or album: Sonos has no "jump to song" here, so skip forward to it
+          for (let n = 0; n < Math.min(+body.index || 0, 40); n++) await so(env, 'POST', g + '/playback/skipToNextTrack');
         }
         else if (u) await so(env, 'POST', need() + '/favorites', { favoriteId: u.replace(/^fav:/, ''), playOnCompletion: true, action: 'REPLACE' });
         else await so(env, 'POST', need() + '/playback/play');
