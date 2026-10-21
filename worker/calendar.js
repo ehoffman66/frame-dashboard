@@ -299,6 +299,11 @@ function spotifyAccount(items) {
   const f = (items || []).find(x => x.resource && x.resource.id && /spotify/i.test(String(x.resource.id.objectId || '') + (x.service && x.service.name)));
   return f ? { serviceId: f.resource.id.serviceId, accountId: f.resource.id.accountId } : null;
 }
+// ...or from the copy the tablet kept from an earlier answer
+function savedAcct(body) {
+  const a = body && body.acct;
+  return a && /^[\w.:-]{1,64}$/.test(String(a.serviceId)) && /^[\w.:-]{1,64}$/.test(String(a.accountId)) ? { serviceId: String(a.serviceId), accountId: String(a.accountId) } : null;
+}
 // ...or from whatever a room is playing from Spotify right now
 async function playingSpotify(env, hh) {
   const gr = await so(env, 'GET', '/households/' + hh + '/groups');
@@ -361,7 +366,12 @@ async function sonos(request, url, env, cors, skip) {
         // Sonos often hands back album art on the speaker's own home address, which the https page can't load; ask Spotify instead
         let art = [tr && tr.imageUrl, meta && meta.container && meta.container.imageUrl].find(u => u && /^https:/.test(u)) || '';
         if (tr && !art && spotifyOn(env)) art = await spotifyArt(env, tr).catch(() => '');
+        // Remember which Spotify account Sonos plays from; the tablet keeps a copy and sends it back, since this Worker forgets on restart
+        const ids = [meta && meta.container && meta.container.id, tr && tr.id];
+        const sid = ids.find(i => i && i.accountId && i.serviceId && /spotify/i.test(String(i.objectId || '') + JSON.stringify(meta.container && meta.container.service || '')));
+        if (sid) globalThis.soSpotify = { serviceId: sid.serviceId, accountId: sid.accountId };
         return json({
+          acct: globalThis.soSpotify || null,
           provider: 'sonos', search: spotifyOn(env), playing: !!cur && cur.playbackState === 'PLAYBACK_STATE_PLAYING',
           track: tr ? { name: tr.name || (meta.container && meta.container.name) || '', by: (tr.artist && tr.artist.name) || '', album: (tr.album && tr.album.name) || '',
             art, ms: tr.durationMillis || 0 } : null,
@@ -395,7 +405,7 @@ async function sonos(request, url, env, cors, skip) {
         if (u.startsWith('sonospl:')) await so(env, 'POST', need() + '/playlists', { playlistId: u.slice(8), playOnCompletion: true, action: 'REPLACE' });
         else if (u.startsWith('spotify:')) {
           // Spotify items play through the Spotify account linked in the Sonos app, learnt from a Spotify favorite
-          const acct = globalThis.soSpotify || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
+          const acct = globalThis.soSpotify || savedAcct(body) || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
           if (!acct) throw new Error('Play something from Spotify on a Sonos once (or heart a Spotify playlist in the Sonos app), so Sonos knows which Spotify account to use');
           globalThis.soSpotify = acct;
           const index = Math.max(0, +body.index || 0), far = index > 25; // past ~25 skips Cloudflare's request budget runs out, so play just that song
@@ -414,7 +424,7 @@ async function sonos(request, url, env, cors, skip) {
       }
       case 'queue': {
         // Play next (after the current song) or add to the end of the queue
-        const u = body.uri || '', acct = globalThis.soSpotify || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
+        const u = body.uri || '', acct = globalThis.soSpotify || savedAcct(body) || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
         if (!/^spotify:track:/.test(u) || !acct) throw new Error('Only Spotify songs can be queued from here');
         globalThis.soSpotify = acct;
         await so(env, 'POST', need() + '/playback/content', { type: 'TRACK', id: { objectId: u, serviceId: acct.serviceId, accountId: acct.accountId }, queueAction: body.next ? 'INSERT_NEXT' : 'APPEND' });

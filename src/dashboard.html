@@ -1141,6 +1141,7 @@ function spGet(path) {
   return fetch(u, { cache: 'no-store' }).then(function (r) { return r.json(); });
 }
 function spPost(path, body) {
+  body = body || {}; if (!body.acct && store.get('musicAcct')) body.acct = store.get('musicAcct');
   return fetch(spUrl(path), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).then(function (r) { return r.json(); });
 }
 function musicErr(j) {
@@ -1163,6 +1164,7 @@ function pullMusic() {
     if (musicErr(j)) {
       music.provider = j.provider || 'spotify'; music.canSearch = j.provider !== 'sonos' || !!j.search;
       music.playing = j.playing; music.track = j.track; music.progress = j.progress; music.device = j.device; music.devices = j.devices || [];
+      if (j.acct) store.set('musicAcct', j.acct); // which Spotify account Sonos uses; sent back with each play
       music.context = j.context || music.started || ''; music.next = j.next || null; // Sonos doesn't always say which playlist is on; fall back to the one started here
       if (music.view === 'queue' && music.context) loadSongs(music.context);
     }
