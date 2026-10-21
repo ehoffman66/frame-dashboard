@@ -1190,11 +1190,14 @@ function showList(j, title) {
 function loadPlaylists() { music.listLoaded = true; return spGet('playlists').then(function (j) { showList(j, 'mine'); }).catch(function () {}); }
 // The songs in a playlist or album (fetched once each), for the playlist view and Up next
 function loadSongs(uri) {
-  if (music.songs[uri]) return Promise.resolve(music.songs[uri]);
+  if (music.songs[uri] && !music.songs[uri].error) return Promise.resolve(music.songs[uri]);
+  var done = false;
+  function show(j) { if (done) return; done = true; music.songs[uri] = j; if (state.tab === 'music') renderMusic(); }
+  setTimeout(function () { show({ name: '', items: [], error: 'Spotify is taking too long. Tap back and try again.' }); }, 15000);
   return spGet('tracks?uri=' + encodeURIComponent(uri)).then(function (j) {
-    if (j && j.items) { music.songs[uri] = j; if (state.tab === 'music') renderMusic(); }
+    show(j && j.items ? j : { name: '', items: [], error: (j && j.error) || 'no answer from the Worker' });
     return j;
-  }).catch(function () {});
+  }).catch(function () { show({ name: '', items: [], error: 'no answer from the Worker' }); });
 }
 function openList(open, play) {
   music.view = 'detail'; music.detail = { uri: open, play: play };
@@ -1230,9 +1233,10 @@ function songsHtml() {
   }
   var d = music.detail, l = d && music.songs[d.uri];
   var html = '<div class="det-h"><button class="btn icon" data-action="music-back" aria-label="Back">‹</button>' +
-    '<i' + (l && l.art ? ' style="background-image:url(\'' + esc(l.art) + '\')"' : '') + '></i><div><b>' + esc(l ? l.name : 'Loading…') + '</b><span>' + esc(l ? l.by || '' : '') + '</span></div>' +
+    '<i' + (l && l.art ? ' style="background-image:url(\'' + esc(l.art) + '\')"' : '') + '></i><div><b>' + esc(l ? l.name || 'Playlist' : 'Loading…') + '</b><span>' + esc(l ? l.by || '' : '') + '</span></div>' +
     '<button class="btn primary" data-action="music-play" data-uri="' + esc(d.play) + '">Play</button></div>';
-  return html + (l ? songRows(l.items, 0) : '');
+  var msg = l ? l.note || (l.error ? 'Couldn\'t load the songs: ' + l.error : l.items.length ? '' : 'No songs to show.') : '';
+  return html + (l ? songRows(l.items, 0) : '') + (msg ? '<div class="music-msg" style="margin-top:14px">' + esc(msg) + '</div>' : '');
 }
 function searchMusic(q) { return spGet('search?q=' + encodeURIComponent(q)).then(function (j) { showList(j, 'search'); }).catch(function () {}); }
 

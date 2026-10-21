@@ -139,9 +139,14 @@ async function spotifyTracks(env, uri) {
   const song = (t, art) => t && { name: t.name, by: (t.artists || []).map(a => a.name).join(', '), ms: t.duration_ms, uri: t.uri,
     art: art || ((t.album && t.album.images && t.album.images.length) ? t.album.images[t.album.images.length - 1].url : '') };
   if (type === 'playlist') {
-    const [p, t] = await Promise.all([sp(env, 'GET', '/playlists/' + id + '?fields=name,images,owner(display_name)'), sp(env, 'GET', '/playlists/' + id + '/tracks?limit=100')]);
+    // Spotify renamed /tracks to /items in 2026 and, for apps in development mode, only lists songs of playlists you own or collaborate on
+    const p = await sp(env, 'GET', '/playlists/' + id + '?fields=name,images,owner(display_name)');
+    let t = null;
+    try { t = await sp(env, 'GET', '/playlists/' + id + '/items?limit=50'); } catch (e) { t = null; }
+    if (!t || !t.items) try { t = await sp(env, 'GET', '/playlists/' + id + '/tracks?limit=50'); } catch (e) { t = null; }
+    const items = ((t && t.items) || []).map(x => song(x.item || x.track)).filter(x => x && x.uri);
     return { name: p.name, art: p.images && p.images.length ? p.images[0].url : '', by: p.owner ? p.owner.display_name : '', fromIndex: true,
-      items: (t.items || []).map(x => song(x.track)).filter(Boolean) };
+      items, note: items.length ? '' : 'Spotify only shares the song list for playlists you made. Tap Play to play it.' };
   }
   if (type === 'album') {
     const a = await sp(env, 'GET', '/albums/' + id);
@@ -150,8 +155,10 @@ async function spotifyTracks(env, uri) {
       items: ((a.tracks && a.tracks.items) || []).map(x => song(x, art)) };
   }
   if (type === 'artist') {
-    const [a, t] = await Promise.all([sp(env, 'GET', '/artists/' + id), sp(env, 'GET', '/artists/' + id + '/top-tracks?market=US')]);
-    return { name: a.name, art: a.images && a.images.length ? a.images[0].url : '', by: 'Top songs', fromIndex: false, items: (t.tracks || []).map(x => song(x)) };
+    // Spotify removed artist top tracks for development-mode apps, so search the artist's songs instead
+    const a = await sp(env, 'GET', '/artists/' + id);
+    const t = await sp(env, 'GET', '/search?type=track&limit=10&q=' + encodeURIComponent('artist:"' + a.name + '"'));
+    return { name: a.name, art: a.images && a.images.length ? a.images[0].url : '', by: 'Songs', fromIndex: false, items: ((t.tracks && t.tracks.items) || []).filter(Boolean).map(x => song(x)) };
   }
   return { name: '', items: [] };
 }
