@@ -248,6 +248,18 @@ body { display: flex; align-items: center; justify-content: center; }
 .tile b { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile span { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: -4px; }
 .tile.on b { color: var(--lamp); }
+.tiles.songs { display: block; }
+.det-h { display: flex; align-items: center; gap: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.det-h i { flex: none; width: 96px; height: 96px; border-radius: 12px; background: var(--panel) center/cover no-repeat; }
+.det-h div { flex: 1; min-width: 0; }
+.det-h b { display: block; font-family: var(--display); font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.det-h span { font-size: 16px; color: var(--muted); }
+.song { width: 100%; border: 0; background: none; text-align: left; display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; min-height: 60px; padding: 4px 4px; border-bottom: 1px solid var(--line); }
+.song .n { color: var(--muted); font-size: 16px; text-align: right; }
+.song b { display: block; font-size: 19px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.song span { display: block; font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.song .d { color: var(--muted); font-size: 15px; }
+.song.on b, .song.on .n { color: var(--lamp); }
 .music-msg { font-size: 17px; color: var(--muted); line-height: 1.4; }
 .music-msg.err { color: #e58a7a; }
 
@@ -370,6 +382,7 @@ body.night .night-veil { opacity: .72; }
         <div class="lib">
           <div class="lib-h">
             <button class="chip-btn" data-action="music-mine" id="m-mine">Our playlists</button>
+            <button class="chip-btn" data-action="music-queue" id="m-queue">Up next</button>
             <form class="add-row" data-form="music-search">
               <input class="field" id="m-q" placeholder="Search Spotify" autocomplete="off" aria-label="Search Spotify">
               <button class="btn primary" type="submit">Search</button>
@@ -1041,8 +1054,15 @@ document.addEventListener('click', function (ev) {
   else if (a === 'music-next' || a === 'music-prev') musicAct(a === 'music-next' ? 'next' : 'previous', { device: speakerId() });
   else if (a === 'music-vol') setVolume(+t.getAttribute('data-step'));
   else if (a === 'music-speaker') pickSpeaker(t.getAttribute('data-name'));
-  else if (a === 'music-play') musicAct('play', { uri: t.getAttribute('data-uri'), device: speakerId() }, { playing: true, playingUri: t.getAttribute('data-uri') });
-  else if (a === 'music-mine') loadPlaylists();
+  else if (a === 'music-play') {
+    music.started = music.view === 'detail' && music.detail ? music.detail.uri : t.getAttribute('data-open') || ''; // for Up next
+    musicAct('play', { uri: t.getAttribute('data-uri'), device: speakerId() }, { playing: true, playingUri: t.getAttribute('data-uri') });
+  }
+  else if (a === 'music-mine') { if (music.view !== 'list' && music.list.length && music.listTitle === 'mine') { music.view = 'list'; renderMusic(); } else loadPlaylists(); }
+  else if (a === 'music-open') openList(t.getAttribute('data-open'), t.getAttribute('data-uri'));
+  else if (a === 'music-back') { music.view = 'list'; renderMusic(); }
+  else if (a === 'music-song') playSong(+t.getAttribute('data-index'));
+  else if (a === 'music-queue') { music.view = 'queue'; el('m-tiles').scrollTop = 0; renderMusic(); if (music.context) loadSongs(music.context); }
   else if (a === 'who') { state.choreWho = t.getAttribute('data-name'); renderChores(); }
 });
 
@@ -1105,7 +1125,8 @@ function loadCalendar() {
 
 // ---- Music: the Sonos rooms, through the calendar Worker (it holds the Sonos or Spotify login) ----
 var music = { loaded: false, setup: true, err: '', playing: false, track: null, progress: 0, device: null, devices: [],
-  pick: store.get('musicSpeaker', ''), provider: '', list: [], listTitle: 'mine', listLoaded: false, playingUri: '', busyUntil: 0 };
+  pick: store.get('musicSpeaker', ''), provider: '', list: [], listTitle: 'mine', listLoaded: false, playingUri: '', busyUntil: 0,
+  view: 'list', detail: null, context: '', next: null, songs: {} };
 function spUrl(path) { var u = store.get('calendarUrl', '') || CONFIG.calendarUrl; return u ? u.replace(/\/+$/, '') + '/music/' + path : ''; }
 function spGet(path) {
   var u = spUrl(path);
@@ -1135,6 +1156,8 @@ function pullMusic() {
     if (musicErr(j)) {
       music.provider = j.provider || 'spotify'; music.canSearch = j.provider !== 'sonos' || !!j.search;
       music.playing = j.playing; music.track = j.track; music.progress = j.progress; music.device = j.device; music.devices = j.devices || [];
+      music.context = j.context || music.started || ''; music.next = j.next || null; // Sonos doesn't always say which playlist is on; fall back to the one started here
+      if (music.view === 'queue' && music.context) loadSongs(music.context);
     }
   }).catch(function () { music.loaded = true; music.err = 'Can\'t reach Spotify right now'; })
     .then(function () { if (state.tab === 'music' && el('sheet-root').hidden) renderMusic(); });
@@ -1159,11 +1182,57 @@ function pickSpeaker(name) {
   else renderMusic();
 }
 function showList(j, title) {
-  music.listTitle = title;
+  music.listTitle = title; music.view = 'list';
   if (musicErr(j)) music.list = j.items || [];
   renderMusic();
 }
 function loadPlaylists() { music.listLoaded = true; return spGet('playlists').then(function (j) { showList(j, 'mine'); }).catch(function () {}); }
+// The songs in a playlist or album (fetched once each), for the playlist view and Up next
+function loadSongs(uri) {
+  if (music.songs[uri]) return Promise.resolve(music.songs[uri]);
+  return spGet('tracks?uri=' + encodeURIComponent(uri)).then(function (j) {
+    if (j && j.items) { music.songs[uri] = j; if (state.tab === 'music') renderMusic(); }
+    return j;
+  }).catch(function () {});
+}
+function openList(open, play) {
+  music.view = 'detail'; music.detail = { uri: open, play: play };
+  el('m-tiles').scrollTop = 0; renderMusic(); loadSongs(open);
+}
+function playSong(i) {
+  var d = music.view === 'queue' ? { uri: music.context, play: music.context } : music.detail, l = d && music.songs[d.uri];
+  if (!l || !l.items[i]) return;
+  // Playlists and albums keep playing on from the chosen song; an artist's top songs play one at a time
+  if (l.fromIndex) { music.started = d.uri; musicAct('play', { uri: d.uri, index: i, device: speakerId() }, { playing: true, playingUri: d.play }); }
+  else musicAct('play', { uri: l.items[i].uri, device: speakerId() }, { playing: true });
+}
+function sameSong(a, t) { return !!t && a.name.toLowerCase() === (t.name || '').toLowerCase(); }
+function songRows(items, start) {
+  return items.map(function (x, k) {
+    var i = k + start, mm = Math.round((x.ms || 0) / 1000);
+    return '<button class="song' + (sameSong(x, music.track) ? ' on' : '') + '" data-action="music-song" data-index="' + i + '"><span class="n">' + (i + 1) + '</span>' +
+      '<div><b>' + esc(x.name) + '</b><span>' + esc(x.by || '') + '</span></div><span class="d">' + (mm ? Math.floor(mm / 60) + ':' + ('0' + mm % 60).slice(-2) : '') + '</span></button>';
+  }).join('');
+}
+function songsHtml() {
+  if (music.view === 'queue') {
+    var q = music.context && music.songs[music.context];
+    if (q) {
+      var at = 0;
+      q.items.forEach(function (x, k) { if (sameSong(x, music.track)) at = k; });
+      return '<div class="det-h"><i' + (q.art ? ' style="background-image:url(\'' + esc(q.art) + '\')"' : '') + '></i><div><b>Up next</b><span>From ' + esc(q.name) + '</span></div></div>' +
+        songRows(q.items.slice(at), at);
+    }
+    return '<div class="det-h"><div><b>Up next</b><span>' + (music.track ? 'Now: ' + esc(music.track.name) : 'Nothing playing') + '</span></div></div>' +
+      (music.next ? '<div class="song"><span class="n">›</span><div><b>' + esc(music.next.name) + '</b><span>' + esc(music.next.by) + '</span></div><span></span></div>' : '') +
+      '<div class="music-msg" style="margin-top:14px">' + (music.context === '' && music.track ? 'Sonos only shares the next song for this. Start a playlist from here to see its whole list.' : '') + '</div>';
+  }
+  var d = music.detail, l = d && music.songs[d.uri];
+  var html = '<div class="det-h"><button class="btn icon" data-action="music-back" aria-label="Back">‹</button>' +
+    '<i' + (l && l.art ? ' style="background-image:url(\'' + esc(l.art) + '\')"' : '') + '></i><div><b>' + esc(l ? l.name : 'Loading…') + '</b><span>' + esc(l ? l.by || '' : '') + '</span></div>' +
+    '<button class="btn primary" data-action="music-play" data-uri="' + esc(d.play) + '">Play</button></div>';
+  return html + (l ? songRows(l.items, 0) : '');
+}
 function searchMusic(q) { return spGet('search?q=' + encodeURIComponent(q)).then(function (j) { showList(j, 'search'); }).catch(function () {}); }
 
 var MUSIC_ICON = {
@@ -1199,10 +1268,16 @@ function renderMusic() {
   fill('np', html);
   var sonos = music.provider === 'sonos';
   el('m-mine').textContent = sonos ? 'Our music' : 'Our playlists';
-  el('m-mine').setAttribute('aria-pressed', music.listTitle === 'mine' ? 'true' : 'false');
   document.querySelector('[data-form="music-search"]').hidden = !music.canSearch; // with Sonos, search needs Spotify connected too
+  el('m-queue').setAttribute('aria-pressed', music.view === 'queue' ? 'true' : 'false');
+  if (music.view === 'list') el('m-mine').setAttribute('aria-pressed', music.listTitle === 'mine' ? 'true' : 'false');
+  else el('m-mine').setAttribute('aria-pressed', 'false');
+  el('m-tiles').classList.toggle('songs', music.view !== 'list');
+  if (music.view !== 'list') { fill('m-tiles', songsHtml()); return; }
   fill('m-tiles', music.list.length ? music.list.map(function (p) {
-    return '<button class="tile' + (p.uri === music.playingUri ? ' on' : '') + '" data-action="music-play" data-uri="' + esc(p.uri) + '">' +
+    // Tapping a Spotify playlist, album or artist opens its songs; anything else just plays
+    var open = p.open || (/^spotify:(playlist|album|artist):/.test(p.uri) ? p.uri : '');
+    return '<button class="tile' + (p.uri === music.playingUri ? ' on' : '') + '" data-action="' + (open ? 'music-open' : 'music-play') + '" data-uri="' + esc(p.uri) + '" data-open="' + esc(open) + '">' +
       '<i' + (p.art ? ' style="background-image:url(\'' + esc(p.art) + '\')"' : '') + '></i><b>' + esc(p.name) + '</b><span>' + esc(p.by || '') + '</span></button>';
   }).join('') : '<div class="music-msg">' + (music.listTitle === 'search' ? 'Nothing found.' :
     sonos ? 'No Sonos Favorites yet. In the Sonos app, tap the heart on a playlist or station and it shows up here.' : '') + '</div>');
