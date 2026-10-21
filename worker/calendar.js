@@ -299,17 +299,17 @@ function spotifyAccount(items) {
   const f = (items || []).find(x => x.resource && x.resource.id && /spotify/i.test(String(x.resource.id.objectId || '') + (x.service && x.service.name)));
   return f ? { serviceId: f.resource.id.serviceId, accountId: f.resource.id.accountId } : null;
 }
-// Load Spotify content on a room. With no known account, try the usual Sonos ids for a linked Spotify account (service 9, sn_1, sn_2...) and keep the one that works.
+// Load Spotify content on a room. With no known account, try the usual Sonos ids for a linked Spotify account (service 12 or 9, sn_1, sn_2...) and keep the one that works.
 async function loadSpotify(env, g, acct, c) {
   const send = a => so(env, 'POST', g + '/playback/content', { type: c.type, id: { objectId: c.objectId, serviceId: a.serviceId, accountId: a.accountId },
     queueAction: c.queueAction, playbackAction: c.playbackAction, playModes: c.playModes });
   if (acct) { await send(acct); globalThis.soSpotify = acct; return; }
   let err = null;
-  for (let n = 1; n <= 8; n++) {
-    const a = { serviceId: '9', accountId: 'sn_' + n };
+  for (const sid of ['12', '9']) for (let n = 1; n <= 6; n++) {
+    const a = { serviceId: sid, accountId: 'sn_' + n };
     try { await send(a); globalThis.soSpotify = a; return; } catch (e) { err = err || e; }
   }
-  throw new Error('Play something from Spotify on a Sonos once (or heart a Spotify playlist in the Sonos app), so Sonos knows which Spotify account to use');
+  throw new Error('Play something from Spotify on a Sonos once (or heart a Spotify playlist in the Sonos app), so Sonos knows which Spotify account to use. Sonos said: ' + (err ? err.message : 'nothing'));
 }
 // ...or from the copy the tablet kept from an earlier answer
 function savedAcct(body) {
