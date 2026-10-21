@@ -299,6 +299,18 @@ function spotifyAccount(items) {
   const f = (items || []).find(x => x.resource && x.resource.id && /spotify/i.test(String(x.resource.id.objectId || '') + (x.service && x.service.name)));
   return f ? { serviceId: f.resource.id.serviceId, accountId: f.resource.id.accountId } : null;
 }
+// Load Spotify content on a room. With no known account, try the usual Sonos ids for a linked Spotify account (service 9, sn_1, sn_2...) and keep the one that works.
+async function loadSpotify(env, g, acct, c) {
+  const send = a => so(env, 'POST', g + '/playback/content', { type: c.type, id: { objectId: c.objectId, serviceId: a.serviceId, accountId: a.accountId },
+    queueAction: c.queueAction, playbackAction: c.playbackAction, playModes: c.playModes });
+  if (acct) { await send(acct); globalThis.soSpotify = acct; return; }
+  let err = null;
+  for (let n = 1; n <= 8; n++) {
+    const a = { serviceId: '9', accountId: 'sn_' + n };
+    try { await send(a); globalThis.soSpotify = a; return; } catch (e) { err = err || e; }
+  }
+  throw new Error('Play something from Spotify on a Sonos once (or heart a Spotify playlist in the Sonos app), so Sonos knows which Spotify account to use');
+}
 // ...or from the copy the tablet kept from an earlier answer
 function savedAcct(body) {
   const a = body && body.acct;
@@ -406,28 +418,25 @@ async function sonos(request, url, env, cors, skip) {
         else if (u.startsWith('spotify:')) {
           // Spotify items play through the Spotify account linked in the Sonos app, learnt from a Spotify favorite
           const acct = globalThis.soSpotify || savedAcct(body) || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
-          if (!acct) throw new Error('Play something from Spotify on a Sonos once (or heart a Spotify playlist in the Sonos app), so Sonos knows which Spotify account to use');
-          globalThis.soSpotify = acct;
           const index = Math.max(0, +body.index || 0), far = index > 25; // past ~25 skips Cloudflare's request budget runs out, so play just that song
           const target = far && body.track ? body.track : u, type = target.split(':')[1].toUpperCase();
-          await so(env, 'POST', need() + '/playback/content', {
+          await loadSpotify(env, need(), acct, {
             type: type === 'ARTIST' ? 'ARTIST' : type === 'ALBUM' ? 'ALBUM' : type === 'TRACK' ? 'TRACK' : 'PLAYLIST',
-            id: { objectId: target, serviceId: acct.serviceId, accountId: acct.accountId }, queueAction: 'REPLACE', playbackAction: 'PLAY',
+            objectId: target, queueAction: 'REPLACE', playbackAction: 'PLAY',
             playModes: body.index !== undefined ? { shuffle: false } : {}
-          }).catch(e => { throw new Error('Sonos wouldn\'t play that from here (' + e.message + '). Add it to Sonos Favorites to play it'); });
+          }).catch(e => { throw /^Play something/.test(e.message) ? e : new Error('Sonos wouldn\'t play that from here (' + e.message + '). Add it to Sonos Favorites to play it'); });
           // Start partway into a playlist or album: Sonos has no "jump to song" here, so wait for it to load, then skip forward and check where it landed
           if (index && !far) await skipTo(env, g, index, body.name || '', body.first || '');
         }
         else if (u) await so(env, 'POST', need() + '/favorites', { favoriteId: u.replace(/^fav:/, ''), playOnCompletion: true, action: 'REPLACE' });
         else await so(env, 'POST', need() + '/playback/play');
-        return json({}, 200, cors);
+        return json({ acct: globalThis.soSpotify || null }, 200, cors);
       }
       case 'queue': {
         // Play next (after the current song) or add to the end of the queue
         const u = body.uri || '', acct = globalThis.soSpotify || savedAcct(body) || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
-        if (!/^spotify:track:/.test(u) || !acct) throw new Error('Only Spotify songs can be queued from here');
-        globalThis.soSpotify = acct;
-        await so(env, 'POST', need() + '/playback/content', { type: 'TRACK', id: { objectId: u, serviceId: acct.serviceId, accountId: acct.accountId }, queueAction: body.next ? 'INSERT_NEXT' : 'APPEND' });
+        if (!/^spotify:track:/.test(u)) throw new Error('Only Spotify songs can be queued from here');
+        await loadSpotify(env, need(), acct, { type: 'TRACK', objectId: u, queueAction: body.next ? 'INSERT_NEXT' : 'APPEND' });
         return json({}, 200, cors);
       }
       case 'pause': await so(env, 'POST', need() + '/playback/pause'); return json({}, 200, cors);

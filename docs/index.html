@@ -1181,7 +1181,7 @@ function pullMusic() {
 function musicAct(path, body, optimistic) {
   if (optimistic) { for (var k in optimistic) music[k] = optimistic[k]; renderMusic(); }
   music.busyUntil = Date.now() + 1500;
-  return spPost(path, body).then(function (j) { musicErr(j); }).catch(function () { music.err = 'Can\'t reach Spotify right now'; })
+  return spPost(path, body).then(function (j) { if (j && j.acct) store.set('musicAcct', j.acct); musicErr(j); }).catch(function () { music.err = 'Can\'t reach Spotify right now'; })
     .then(function () { music.busyUntil = 0; renderMusic(); setTimeout(pullMusic, 800); });
 }
 function setVolume(step) {
