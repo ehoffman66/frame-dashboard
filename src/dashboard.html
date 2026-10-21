@@ -262,6 +262,7 @@ body { display: flex; align-items: center; justify-content: center; }
 .song .d { color: var(--muted); font-size: 15px; }
 .song.on b, .song.on .n { color: var(--lamp); }
 .song .more { width: 48px; height: 48px; border: 0; border-radius: 12px; background: var(--panel-2); font-size: 26px; line-height: 1; color: var(--muted); }
+.q-h { font-size: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 18px 4px 6px; }
 .song-menu { display: flex; gap: 12px; padding: 10px 0 12px 56px; border-bottom: 1px solid var(--line); }
 .song-menu .btn { height: 48px; font-size: 17px; }
 .music-msg { font-size: 17px; color: var(--muted); line-height: 1.4; }
@@ -1225,7 +1226,10 @@ function queueSong(i, next) {
   if (!l || !l.items[i]) return;
   music.queued = 'Adding…'; renderMusic();
   spPost('queue', { uri: l.items[i].uri, next: next, device: speakerId() }).then(function (j) {
-    music.queued = j && j.error ? '' : next ? 'Plays next' : 'Added to queue'; musicErr(j);
+    var ok = !(j && j.error);
+    music.queued = ok ? (next ? 'Plays next' : 'Added to queue') : ''; musicErr(j);
+    if (ok && !next) (music.added = music.added || []).push(l.items[i]);
+    if (ok) setTimeout(pullMusic, 1500);
   }).catch(function () { music.queued = ''; music.err = 'Can\'t reach Spotify right now'; }).then(function () {
     renderMusic(); setTimeout(function () { music.menu = null; music.queued = ''; renderMusic(); }, 2500);
   });
@@ -1242,18 +1246,23 @@ function songRows(items, start) {
         (music.queued ? '<span class="music-msg" style="align-self:center">' + esc(music.queued) + '</span>' : '') + '</div>' : '');
   }).join('');
 }
+function plainRow(mark, x) {
+  return '<div class="song"><span class="n">' + mark + '</span><div><b>' + esc(x.name) + '</b><span>' + esc(x.by || '') + '</span></div><span></span><span></span></div>';
+}
 function songsHtml() {
   if (music.view === 'queue') {
-    var q = music.context && music.songs[music.context];
+    var q = music.context && music.songs[music.context], html = '';
+    // What the speaker itself says plays next (this is where "Play next" songs show up)
+    if (music.next) html += '<div class="q-h">Next on the speaker</div>' + plainRow('›', music.next);
     if (q) {
       var at = 0;
       q.items.forEach(function (x, k) { if (sameSong(x, music.track)) at = k; });
-      return '<div class="det-h"><i' + (q.art ? ' style="background-image:url(\'' + esc(q.art) + '\')"' : '') + '></i><div><b>Up next</b><span>From ' + esc(q.name) + '</span></div></div>' +
-        songRows(q.items.slice(at), at);
-    }
-    return '<div class="det-h"><div><b>Up next</b><span>' + (music.track ? 'Now: ' + esc(music.track.name) : 'Nothing playing') + '</span></div></div>' +
-      (music.next ? '<div class="song"><span class="n">›</span><div><b>' + esc(music.next.name) + '</b><span>' + esc(music.next.by) + '</span></div><span></span></div>' : '') +
-      '<div class="music-msg" style="margin-top:14px">' + (music.context === '' && music.track ? 'Sonos only shares the next song for this. Start a playlist from here to see its whole list.' : '') + '</div>';
+      html += '<div class="q-h">Then from ' + esc(q.name) + '</div>' + songRows(q.items.slice(at + 1), at + 1);
+    } else if (music.track) html += '<div class="music-msg" style="margin-top:14px">Sonos only shares the next song for this. Start a playlist from here to see its whole list.</div>';
+    var added = (music.added || []).filter(function (x) { return !sameSong(x, music.track); });
+    music.added = added;
+    if (added.length) html += '<div class="q-h">Added to the end of the queue</div>' + added.map(function (x) { return plainRow('+', x); }).join('');
+    return '<div class="det-h"><div><b>Up next</b><span>' + (music.track ? 'Now: ' + esc(music.track.name) : 'Nothing playing') + '</span></div></div>' + html;
   }
   var d = music.detail, l = d && music.songs[d.uri];
   var html = '<div class="det-h"><button class="btn icon" data-action="music-back" aria-label="Back">‹</button>' +
