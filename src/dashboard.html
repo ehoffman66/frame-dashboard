@@ -242,8 +242,9 @@ body { display: flex; align-items: center; justify-content: center; }
 .lib { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; }
 .lib-h { display: flex; gap: 10px; align-items: center; }
 .lib-h .add-row { flex: 1; }
-.tiles { flex: 1 1 auto; touch-action: pan-y; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; align-content: start; }
-.tile { border: 0; background: none; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden; }
+.tiles { flex: 1 1 auto; touch-action: pan-y; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; align-content: start; grid-auto-rows: max-content; }
+.tile { border: 0; background: none; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tile > * { flex-shrink: 0; max-width: 100%; }
 .tile i { display: block; width: 100%; aspect-ratio: 1; border-radius: 12px; background: var(--panel) center/cover no-repeat; }
 .tile b { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile span { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: -4px; }
