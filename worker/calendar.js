@@ -280,10 +280,11 @@ function spotifyUri(text) {
   return m ? 'spotify:' + m[1].toLowerCase() + ':' + m[2] : '';
 }
 async function spotifyArt(env, tr) {
-  const key = (tr.name || '') + '|' + ((tr.artist && tr.artist.name) || '');
+  const id = spotifyUri(JSON.stringify(tr.id || ''));
+  const key = id || (tr.name || '') + '|' + ((tr.artist && tr.artist.name) || '');
   const cache = globalThis.spArt || (globalThis.spArt = {});
   if (key in cache) return cache[key];
-  const id = spotifyUri(JSON.stringify(tr.id || ''));
+  if (!id && !tr.name) return '';
   let t = null;
   if (/^spotify:track:/.test(id)) t = await sp(env, 'GET', '/tracks/' + id.split(':')[2]);
   else {
@@ -292,6 +293,21 @@ async function spotifyArt(env, tr) {
   }
   const imgs = (t && t.album && t.album.images) || [];
   return (cache[key] = imgs.length ? imgs[0].url : '');
+}
+// Sonos sometimes leaves out the song name (often for songs it was handed from here); look it up on Spotify by the track id
+async function fillTrack(env, tr) {
+  if (tr && !tr.name && tr.title) tr.name = tr.title;
+  if (tr && typeof tr.artist === 'string') tr.artist = { name: tr.artist };
+  if (!tr || tr.name || !spotifyOn(env)) return;
+  const id = spotifyUri(JSON.stringify(tr.id || ''));
+  if (!/^spotify:track:/.test(id)) return;
+  const cache = globalThis.spTrack || (globalThis.spTrack = {});
+  const t = cache[id] || (cache[id] = await sp(env, 'GET', '/tracks/' + id.split(':')[2]).catch(() => null));
+  if (!t) { delete cache[id]; return; }
+  tr.name = t.name;
+  if (!tr.artist || !tr.artist.name) tr.artist = { name: (t.artists || []).map(a => a.name).join(', ') };
+  if (!tr.album || !tr.album.name) tr.album = { name: t.album ? t.album.name : '' };
+  if (!tr.durationMillis) tr.durationMillis = t.duration_ms;
 }
 function spotifyOn(env) { return !!(env.SPOTIFY_ID && env.SPOTIFY_SECRET && env.SPOTIFY_REFRESH); }
 // The Spotify account Sonos uses, from any favorite that came from Spotify
@@ -375,6 +391,7 @@ async function sonos(request, url, env, cors, skip) {
         const cur = i >= 0 ? groups[i] : null, meta = cur && info[i][1], pb = cur && info[i][2];
         const tr = meta && meta.currentItem && meta.currentItem.track;
         const nx = meta && meta.nextItem && meta.nextItem.track;
+        await Promise.all([fillTrack(env, tr), fillTrack(env, nx)]);
         // Sonos often hands back album art on the speaker's own home address, which the https page can't load; ask Spotify instead
         let art = [tr && tr.imageUrl, meta && meta.container && meta.container.imageUrl].find(u => u && /^https:/.test(u)) || '';
         if (tr && !art && spotifyOn(env)) art = await spotifyArt(env, tr).catch(() => '');
@@ -388,7 +405,7 @@ async function sonos(request, url, env, cors, skip) {
           track: tr ? { name: tr.name || (meta.container && meta.container.name) || '', by: (tr.artist && tr.artist.name) || '', album: (tr.album && tr.album.name) || '',
             art, ms: tr.durationMillis || 0 } : null,
           context: meta && meta.container ? spotifyUri(JSON.stringify(meta.container.id || '')) : '',
-          next: nx ? { name: nx.name || '', by: (nx.artist && nx.artist.name) || '' } : null,
+          next: nx && nx.name ? { name: nx.name, by: (nx.artist && nx.artist.name) || '' } : null,
           progress: pb ? pb.positionMillis || 0 : 0, device: cur ? cur.id : null,
           devices: groups.map((x, k) => ({ id: x.id, name: x.name, active: x.playbackState === 'PLAYBACK_STATE_PLAYING', volume: info[k][0] ? info[k][0].volume : null, canVolume: true }))
         }, 200, cors);
