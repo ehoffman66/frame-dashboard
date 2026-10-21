@@ -456,7 +456,7 @@ async function sonos(request, url, env, cors, skip) {
         // Sonos pauses when content is added this way, so resume if it was playing
         const was = await so(env, 'GET', need() + '/playback').catch(() => null);
         await loadSpotify(env, need(), acct, { type: 'TRACK', objectId: u, queueAction: body.next ? 'INSERT_NEXT' : 'APPEND' });
-        if (was && was.playbackState === 'PLAYBACK_STATE_PLAYING') { await wait(400); await so(env, 'POST', need() + '/playback/play').catch(() => null); }
+        if (was && was.playbackState === 'PLAYBACK_STATE_PLAYING') await so(env, 'POST', need() + '/playback/play').catch(() => null);
         return json({}, 200, cors);
       }
       case 'pause': await so(env, 'POST', need() + '/playback/pause'); return json({}, 200, cors);
