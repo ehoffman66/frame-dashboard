@@ -453,7 +453,10 @@ async function sonos(request, url, env, cors, skip) {
         // Play next (after the current song) or add to the end of the queue
         const u = body.uri || '', acct = globalThis.soSpotify || savedAcct(body) || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
         if (!/^spotify:track:/.test(u)) throw new Error('Only Spotify songs can be queued from here');
+        // Sonos pauses when content is added this way, so resume if it was playing
+        const was = await so(env, 'GET', need() + '/playback').catch(() => null);
         await loadSpotify(env, need(), acct, { type: 'TRACK', objectId: u, queueAction: body.next ? 'INSERT_NEXT' : 'APPEND' });
+        if (was && was.playbackState === 'PLAYBACK_STATE_PLAYING') { await wait(400); await so(env, 'POST', need() + '/playback/play').catch(() => null); }
         return json({}, 200, cors);
       }
       case 'pause': await so(env, 'POST', need() + '/playback/pause'); return json({}, 200, cors);
