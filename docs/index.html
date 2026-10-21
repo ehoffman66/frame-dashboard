@@ -560,6 +560,7 @@ function fill(id, html) { var n = el(id); if (n._html !== html) { n._html = html
 // ---- Tabs and idle return ----
 function showTab(tab) {
   state.tab = tab;
+  store.set('lastTab', { tab: tab, at: Date.now() }); // so a reload comes back here
   ['home', 'calendar', 'groceries', 'meals', 'chores', 'cocktails', 'music', 'sports'].forEach(function (t) { el('view-' + t).hidden = t !== tab; });
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
   el('rail-time').style.visibility = tab === 'home' ? 'hidden' : 'visible';
@@ -588,7 +589,8 @@ function tick() {
     : (hour >= CONFIG.nightStart && hour < CONFIG.nightEnd);
   document.body.classList.toggle('night', night && Date.now() - lastTouch > 60000);
   var idleMs = state.tab === 'cocktails' ? CONFIG.cocktailsIdleMin * 60000 : CONFIG.idleReturnSec * 1000;
-  if (state.tab !== 'home' && el('sheet-root').hidden && Date.now() - lastTouch > idleMs) showTab('home');
+  var keep = state.tab === 'music' && music.playing; // stay on Music while something plays
+  if (state.tab !== 'home' && !keep && el('sheet-root').hidden && Date.now() - lastTouch > idleMs) showTab('home');
   if (state.choreDone.day !== dayKey(d)) { state.choreDone = { day: dayKey(d), ids: [] }; store.set('choreDone', state.choreDone); renderBadges(); }
 }
 
@@ -1520,6 +1522,8 @@ function loadSports() {
 
 tick();
 renderAll();
+// After a reload (Wi-Fi blip, nightly refresh), go back to the tab that was open in the last 10 minutes
+(function () { var t = store.get('lastTab'); if (t && t.tab && t.tab !== 'home' && el('view-' + t.tab) && Date.now() - t.at < 10 * 60000) showTab(t.tab); })();
 loadSports();
 setInterval(loadSports, 15 * 60000);
 // Spotify's state every 5 seconds while the Music tab is open
