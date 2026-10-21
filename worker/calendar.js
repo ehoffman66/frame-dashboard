@@ -211,6 +211,7 @@ async function spotify(request, url, env, cors, skip) {
         const u = body.uri, play = !u ? undefined : /^spotify:track:/.test(u) ? { uris: [u] } : body.index ? { context_uri: u, offset: { position: +body.index } } : { context_uri: u };
         return json(await sp(env, 'PUT', '/me/player/play' + dev, play) || {}, 200, cors);
       }
+      case 'queue': return json(await sp(env, 'POST', '/me/player/queue?uri=' + encodeURIComponent(body.uri || '') + (body.device ? '&device_id=' + encodeURIComponent(body.device) : '')) || {}, 200, cors);
       case 'pause': return json(await sp(env, 'PUT', '/me/player/pause' + dev) || {}, 200, cors);
       case 'next': return json(await sp(env, 'POST', '/me/player/next' + dev) || {}, 200, cors);
       case 'previous': return json(await sp(env, 'POST', '/me/player/previous' + dev) || {}, 200, cors);
@@ -253,6 +254,25 @@ async function so(env, method, path, body, retried) {
   if (r.status === 401) throw new Error('Sonos refused the dashboard\'s access (401). Sign in again at /sonos/login and save the new SONOS_REFRESH');
   if (!r.ok) throw new Error((j && (j.reason || j.errorCode)) || 'Sonos error ' + r.status);
   return j;
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const sameName = (a, b) => { a = String(a || '').toLowerCase().trim(); b = String(b || '').toLowerCase().trim(); return !!a && !!b && (a === b || a.startsWith(b) || b.startsWith(a)); };
+async function nowName(env, g) {
+  const m = await so(env, 'GET', g + '/playbackMetadata').catch(() => null);
+  return m && m.currentItem && m.currentItem.track ? m.currentItem.track.name : '';
+}
+// Skip from the first song to song number `index`, then nudge until the speaker reports the song that was tapped
+async function skipTo(env, g, index, name, first) {
+  // let the new queue start (until the playlist's first song shows, when we know it)
+  for (let n = 0; n < 6; n++) { const now = await nowName(env, g); if (first ? sameName(now, first) : now) break; await wait(500); }
+  const blind = name ? Math.max(0, index - 3) : index;
+  for (let n = 0; n < blind; n++) { await so(env, 'POST', g + '/playback/skipToNextTrack'); await wait(350); }
+  if (!name) return;
+  for (let n = 0; n < 6; n++) {
+    await wait(500);
+    if (sameName(await nowName(env, g), name)) return;
+    await so(env, 'POST', g + '/playback/skipToNextTrack');
+  }
 }
 // A Spotify link (spotify:playlist:ID and the like) from anything that mentions one, even URL-encoded
 function spotifyUri(text) {
@@ -378,16 +398,26 @@ async function sonos(request, url, env, cors, skip) {
           const acct = globalThis.soSpotify || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
           if (!acct) throw new Error('Play something from Spotify on a Sonos once (or heart a Spotify playlist in the Sonos app), so Sonos knows which Spotify account to use');
           globalThis.soSpotify = acct;
-          const type = u.split(':')[1].toUpperCase();
+          const index = Math.max(0, +body.index || 0), far = index > 25; // past ~25 skips Cloudflare's request budget runs out, so play just that song
+          const target = far && body.track ? body.track : u, type = target.split(':')[1].toUpperCase();
           await so(env, 'POST', need() + '/playback/content', {
             type: type === 'ARTIST' ? 'ARTIST' : type === 'ALBUM' ? 'ALBUM' : type === 'TRACK' ? 'TRACK' : 'PLAYLIST',
-            id: { objectId: u, serviceId: acct.serviceId, accountId: acct.accountId }, playbackAction: 'PLAY', playModes: body.index ? { shuffle: false } : {}
+            id: { objectId: target, serviceId: acct.serviceId, accountId: acct.accountId }, queueAction: 'REPLACE', playbackAction: 'PLAY',
+            playModes: body.index !== undefined ? { shuffle: false } : {}
           }).catch(e => { throw new Error('Sonos wouldn\'t play that from here (' + e.message + '). Add it to Sonos Favorites to play it'); });
-          // Start partway into a playlist or album: Sonos has no "jump to song" here, so skip forward to it
-          for (let n = 0; n < Math.min(+body.index || 0, 40); n++) await so(env, 'POST', g + '/playback/skipToNextTrack');
+          // Start partway into a playlist or album: Sonos has no "jump to song" here, so wait for it to load, then skip forward and check where it landed
+          if (index && !far) await skipTo(env, g, index, body.name || '', body.first || '');
         }
         else if (u) await so(env, 'POST', need() + '/favorites', { favoriteId: u.replace(/^fav:/, ''), playOnCompletion: true, action: 'REPLACE' });
         else await so(env, 'POST', need() + '/playback/play');
+        return json({}, 200, cors);
+      }
+      case 'queue': {
+        // Play next (after the current song) or add to the end of the queue
+        const u = body.uri || '', acct = globalThis.soSpotify || spotifyAccount((await so(env, 'GET', '/households/' + hh + '/favorites')).items) || await playingSpotify(env, hh);
+        if (!/^spotify:track:/.test(u) || !acct) throw new Error('Only Spotify songs can be queued from here');
+        globalThis.soSpotify = acct;
+        await so(env, 'POST', need() + '/playback/content', { type: 'TRACK', id: { objectId: u, serviceId: acct.serviceId, accountId: acct.accountId }, queueAction: body.next ? 'INSERT_NEXT' : 'APPEND' });
         return json({}, 200, cors);
       }
       case 'pause': await so(env, 'POST', need() + '/playback/pause'); return json({}, 200, cors);

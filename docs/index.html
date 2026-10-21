@@ -262,12 +262,15 @@ body { display: flex; align-items: center; justify-content: center; }
 .det-h div { flex: 1; min-width: 0; }
 .det-h b { display: block; font-family: var(--display); font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .det-h span { font-size: 16px; color: var(--muted); }
-.song { width: 100%; border: 0; background: none; text-align: left; display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; min-height: 60px; padding: 4px 4px; border-bottom: 1px solid var(--line); }
+.song { width: 100%; border: 0; background: none; text-align: left; display: grid; grid-template-columns: 44px 1fr auto 56px; gap: 12px; align-items: center; min-height: 60px; padding: 4px 4px; border-bottom: 1px solid var(--line); }
 .song .n { color: var(--muted); font-size: 16px; text-align: right; }
 .song b { display: block; font-size: 19px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .song span { display: block; font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .song .d { color: var(--muted); font-size: 15px; }
 .song.on b, .song.on .n { color: var(--lamp); }
+.song .more { width: 48px; height: 48px; border: 0; border-radius: 12px; background: var(--panel-2); font-size: 26px; line-height: 1; color: var(--muted); }
+.song-menu { display: flex; gap: 12px; padding: 10px 0 12px 56px; border-bottom: 1px solid var(--line); }
+.song-menu .btn { height: 48px; font-size: 17px; }
 .music-msg { font-size: 17px; color: var(--muted); line-height: 1.4; }
 .music-msg.err { color: #e58a7a; }
 
@@ -1068,8 +1071,10 @@ document.addEventListener('click', function (ev) {
   }
   else if (a === 'music-mine') { if (music.view !== 'list' && music.list.length && music.listTitle === 'mine') { music.view = 'list'; renderMusic(); } else loadPlaylists(); }
   else if (a === 'music-open') openList(t.getAttribute('data-open'), t.getAttribute('data-uri'));
-  else if (a === 'music-back') { music.view = 'list'; renderMusic(); }
+  else if (a === 'music-back') { music.view = 'list'; music.menu = null; renderMusic(); }
   else if (a === 'music-song') playSong(+t.getAttribute('data-index'));
+  else if (a === 'music-more') { var mi = +t.getAttribute('data-index'); music.menu = music.menu === mi ? null : mi; music.queued = ''; renderMusic(); }
+  else if (a === 'music-enqueue') queueSong(+t.getAttribute('data-index'), !!t.getAttribute('data-next'));
   else if (a === 'music-queue') { music.view = 'queue'; el('m-tiles').scrollTop = 0; renderMusic(); if (music.context) loadSongs(music.context); }
   else if (a === 'who') { state.choreWho = t.getAttribute('data-name'); renderChores(); }
 });
@@ -1207,22 +1212,41 @@ function loadSongs(uri) {
   }).catch(function () { show({ name: '', items: [], error: 'no answer from the Worker' }); });
 }
 function openList(open, play) {
-  music.view = 'detail'; music.detail = { uri: open, play: play };
+  music.view = 'detail'; music.menu = null; music.detail = { uri: open, play: play };
   el('m-tiles').scrollTop = 0; renderMusic(); loadSongs(open);
 }
+function songList() {
+  var d = music.view === 'queue' ? { uri: music.context, play: music.context } : music.detail;
+  return { d: d, l: d && music.songs[d.uri] };
+}
 function playSong(i) {
-  var d = music.view === 'queue' ? { uri: music.context, play: music.context } : music.detail, l = d && music.songs[d.uri];
+  var o = songList(), d = o.d, l = o.l;
   if (!l || !l.items[i]) return;
-  // Playlists and albums keep playing on from the chosen song; an artist's top songs play one at a time
-  if (l.fromIndex) { music.started = d.uri; musicAct('play', { uri: d.uri, index: i, device: speakerId() }, { playing: true, playingUri: d.play }); }
+  music.menu = null;
+  // Playlists and albums keep playing on from the chosen song; an artist's songs play one at a time
+  if (l.fromIndex) { music.started = d.uri; musicAct('play', { uri: d.uri, index: i, name: l.items[i].name, first: l.items[0].name, track: l.items[i].uri, device: speakerId() }, { playing: true, playingUri: d.play }); }
   else musicAct('play', { uri: l.items[i].uri, device: speakerId() }, { playing: true });
+}
+function queueSong(i, next) {
+  var l = songList().l;
+  if (!l || !l.items[i]) return;
+  music.queued = 'Adding…'; renderMusic();
+  spPost('queue', { uri: l.items[i].uri, next: next, device: speakerId() }).then(function (j) {
+    music.queued = j && j.error ? '' : next ? 'Plays next' : 'Added to queue'; musicErr(j);
+  }).catch(function () { music.queued = ''; music.err = 'Can\'t reach Spotify right now'; }).then(function () {
+    renderMusic(); setTimeout(function () { music.menu = null; music.queued = ''; renderMusic(); }, 2500);
+  });
 }
 function sameSong(a, t) { return !!t && a.name.toLowerCase() === (t.name || '').toLowerCase(); }
 function songRows(items, start) {
   return items.map(function (x, k) {
     var i = k + start, mm = Math.round((x.ms || 0) / 1000);
-    return '<button class="song' + (sameSong(x, music.track) ? ' on' : '') + '" data-action="music-song" data-index="' + i + '"><span class="n">' + (i + 1) + '</span>' +
-      '<div><b>' + esc(x.name) + '</b><span>' + esc(x.by || '') + '</span></div><span class="d">' + (mm ? Math.floor(mm / 60) + ':' + ('0' + mm % 60).slice(-2) : '') + '</span></button>';
+    return '<div class="song' + (sameSong(x, music.track) ? ' on' : '') + '" data-action="music-song" data-index="' + i + '"><span class="n">' + (i + 1) + '</span>' +
+      '<div><b>' + esc(x.name) + '</b><span>' + esc(x.by || '') + '</span></div><span class="d">' + (mm ? Math.floor(mm / 60) + ':' + ('0' + mm % 60).slice(-2) : '') + '</span>' +
+      '<button class="more" data-action="music-more" data-index="' + i + '" aria-label="Queue options">+</button></div>' +
+      (music.menu === i ? '<div class="song-menu"><button class="btn" data-action="music-enqueue" data-index="' + i + '" data-next="1">Play next</button>' +
+        '<button class="btn" data-action="music-enqueue" data-index="' + i + '" data-next="">Add to queue</button>' +
+        (music.queued ? '<span class="music-msg" style="align-self:center">' + esc(music.queued) + '</span>' : '') + '</div>' : '');
   }).join('');
 }
 function songsHtml() {
