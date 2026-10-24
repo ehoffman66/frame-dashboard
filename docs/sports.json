@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-20T12:16:47.648Z",
+  "updated": "2026-10-24T03:13:12.497Z",
   "clt": {
     "asof": "MLS standings through Oct 17",
     "rec": "13-9-8",
@@ -78,20 +78,13 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Oct 20",
-    "rec": "4-2-0",
-    "pts": 8,
+    "asof": "AHL stats through Oct 23",
+    "rec": "5-2-0",
+    "pts": 10,
     "place": "1st in the Atlantic",
-    "last": "Won 4-2 vs Hartford, Oct 17",
-    "leaders": "Nate Bastian 1 goal, 4 assists · Jack Devine 3 goals, 1 assist",
+    "last": "Won 3-2 vs Springfield, Oct 23",
+    "leaders": "Jack Devine 3 goals, 2 assists · Nate Bastian 1 goal, 4 assists",
     "games": [
-      {
-        "at": "2026-10-23",
-        "opp": "Springfield",
-        "home": true,
-        "pick": "Checkers win 3-2",
-        "why": "Springfield is winless in 3 and scores 2.2 a game; home ice and a week of rest."
-      },
       {
         "at": "2026-10-24",
         "opp": "Springfield",
@@ -119,12 +112,19 @@
         "home": false,
         "pick": null,
         "why": ""
+      },
+      {
+        "at": "2026-11-01",
+        "opp": "Iowa",
+        "home": false,
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
       [
         "Charlotte",
-        ".667"
+        ".714"
       ],
       [
         "Hershey",
@@ -140,7 +140,7 @@
       ],
       [
         "Springfield",
-        ".500"
+        ".429"
       ],
       [
         "Hartford",
