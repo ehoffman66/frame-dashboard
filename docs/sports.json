@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-27T12:16:17.198Z",
+  "updated": "2026-10-28T12:15:20.855Z",
   "clt": {
     "asof": "MLS standings through Oct 24",
     "rec": "13-10-8",
@@ -70,26 +70,19 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Oct 27",
-    "rec": "5-3-0",
-    "pts": 10,
+    "asof": "AHL stats through Oct 28",
+    "rec": "6-3-0",
+    "pts": 12,
     "place": "2nd in the Atlantic",
-    "last": "Lost 2-1 vs Springfield, Oct 24",
-    "leaders": "Jack Devine 4 goals, 2 assists · Nate Bastian 1 goal, 4 assists",
+    "last": "Won 6-3 at Colorado, Oct 27",
+    "leaders": "Jack Devine 6 goals, 2 assists · Nate Smith 5 goals, 1 assist",
     "games": [
-      {
-        "at": "2026-10-27",
-        "opp": "Colorado",
-        "home": false,
-        "pick": "Colorado wins 4-2",
-        "why": "Colorado is 3-1 and scores 4.5 a game; long trip west for Charlotte."
-      },
       {
         "at": "2026-10-28",
         "opp": "Colorado",
         "home": false,
-        "pick": null,
-        "why": ""
+        "pick": "Checkers win 3-2",
+        "why": "Charlotte won 6-3 in Colorado on Tuesday with two power-play goals; Devine has 3 goals in his last 2 games."
       },
       {
         "at": "2026-10-30",
@@ -111,6 +104,13 @@
         "home": true,
         "pick": null,
         "why": ""
+      },
+      {
+        "at": "2026-11-07",
+        "opp": "Wilkes-Barre/Scranton",
+        "home": true,
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
@@ -120,7 +120,7 @@
       ],
       [
         "Charlotte",
-        ".625"
+        ".667"
       ],
       [
         "Wilkes-Barre/Scranton",
