@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-29T03:13:05.055Z",
+  "updated": "2026-10-29T12:21:38.897Z",
   "clt": {
     "asof": "MLS standings through Oct 28",
     "rec": "14-10-8",
@@ -25,35 +25,35 @@
         "at": "2026-10-31T13:00",
         "opp": "Orlando",
         "home": true,
-        "gf": 58,
-        "ga": 70,
-        "gp": 31
+        "gf": 60,
+        "ga": 72,
+        "gp": 32
       },
       {
         "at": "2026-11-07T16:00",
         "opp": "Miami",
         "home": false,
-        "gf": 73,
-        "ga": 53,
-        "gp": 31
+        "gf": 75,
+        "ga": 55,
+        "gp": 32
       }
     ],
     "table": [
       [
         "Nashville",
-        70
+        71
       ],
       [
         "New England",
-        55
+        58
       ],
       [
         "Inter Miami",
-        55
+        56
       ],
       [
         "Chicago",
-        51
+        52
       ],
       [
         "Charlotte",
@@ -62,20 +62,13 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Oct 28",
-    "rec": "6-3-0",
+    "asof": "AHL stats through Oct 29",
+    "rec": "6-4-0",
     "pts": 12,
     "place": "2nd in the Atlantic",
-    "last": "Won 6-3 at Colorado, Oct 27",
+    "last": "Lost 3-0 at Colorado, Oct 28",
     "leaders": "Jack Devine 6 goals, 2 assists · Nate Smith 5 goals, 1 assist",
     "games": [
-      {
-        "at": "2026-10-28",
-        "opp": "Colorado",
-        "home": false,
-        "pick": "Checkers win 3-2",
-        "why": "Charlotte won 6-3 in Colorado on Tuesday with two power-play goals; Devine has 3 goals in his last 2 games."
-      },
       {
         "at": "2026-10-30",
         "opp": "Iowa",
@@ -103,16 +96,23 @@
         "home": true,
         "pick": null,
         "why": ""
+      },
+      {
+        "at": "2026-11-10",
+        "opp": "Providence",
+        "home": true,
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
       [
         "Hershey",
-        ".714"
+        ".750"
       ],
       [
         "Charlotte",
-        ".667"
+        ".600"
       ],
       [
         "Wilkes-Barre/Scranton",
