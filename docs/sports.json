@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-29T12:21:38.897Z",
+  "updated": "2026-10-30T12:21:57.201Z",
   "clt": {
     "asof": "MLS standings through Oct 28",
     "rec": "14-10-8",
@@ -62,7 +62,7 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Oct 29",
+    "asof": "AHL stats through Oct 30",
     "rec": "6-4-0",
     "pts": 12,
     "place": "2nd in the Atlantic",
@@ -128,7 +128,7 @@
       ],
       [
         "Hartford",
-        ".400"
+        ".409"
       ],
       [
         "Providence",
