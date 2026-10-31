@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-30T12:21:57.201Z",
+  "updated": "2026-10-31T03:13:27.499Z",
   "clt": {
     "asof": "MLS standings through Oct 28",
     "rec": "14-10-8",
@@ -62,20 +62,13 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Oct 30",
-    "rec": "6-4-0",
-    "pts": 12,
+    "asof": "AHL stats through Oct 31",
+    "rec": "7-4-0",
+    "pts": 14,
     "place": "2nd in the Atlantic",
-    "last": "Lost 3-0 at Colorado, Oct 28",
-    "leaders": "Jack Devine 6 goals, 2 assists · Nate Smith 5 goals, 1 assist",
+    "last": "Won 6-3 at Iowa, Oct 30",
+    "leaders": "Jack Devine 7 goals, 3 assists · Gracyn Sawchyn 2 goals, 5 assists",
     "games": [
-      {
-        "at": "2026-10-30",
-        "opp": "Iowa",
-        "home": false,
-        "pick": null,
-        "why": ""
-      },
       {
         "at": "2026-11-01",
         "opp": "Iowa",
@@ -103,24 +96,31 @@
         "home": true,
         "pick": null,
         "why": ""
+      },
+      {
+        "at": "2026-11-11",
+        "opp": "Providence",
+        "home": true,
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
       [
         "Hershey",
-        ".750"
+        ".667"
       ],
       [
         "Charlotte",
-        ".600"
+        ".636"
       ],
       [
         "Wilkes-Barre/Scranton",
-        ".563"
+        ".500"
       ],
       [
         "Lehigh Valley",
-        ".563"
+        ".500"
       ],
       [
         "Springfield",
@@ -128,11 +128,11 @@
       ],
       [
         "Hartford",
-        ".409"
+        ".458"
       ],
       [
         "Providence",
-        ".333"
+        ".400"
       ]
     ]
   }
