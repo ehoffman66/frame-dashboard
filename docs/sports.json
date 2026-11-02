@@ -1,10 +1,10 @@
 {
-  "updated": "2026-11-02T04:13:23.438Z",
+  "updated": "2026-11-02T14:03:52.030Z",
   "clt": {
     "asof": "MLS standings through Oct 31",
     "rec": "15-10-8",
     "pts": 53,
-    "place": "4th in the East",
+    "place": "5th in the East",
     "last": "Beat Orlando 4-0, Oct 31",
     "leaders": "Idan Toklomati 15 goals · Pep Biel 11 assists",
     "form": 0.5,
@@ -44,17 +44,17 @@
         56
       ],
       [
-        "Charlotte",
-        53
+        "Chicago",
+        55
       ],
       [
-        "Chicago",
-        52
+        "Charlotte",
+        53
       ]
     ]
   },
   "chk": {
-    "asof": "AHL stats through Nov 1",
+    "asof": "AHL stats through Nov 2",
     "rec": "8-4-0",
     "pts": 16,
     "place": "1st in the Atlantic",
@@ -104,14 +104,14 @@
       ],
       [
         "Hershey",
-        ".667"
-      ],
-      [
-        "Hartford",
-        ".500"
+        ".600"
       ],
       [
         "Wilkes-Barre/Scranton",
+        ".550"
+      ],
+      [
+        "Hartford",
         ".500"
       ],
       [
