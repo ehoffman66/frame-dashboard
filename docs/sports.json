@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-01T03:13:20.031Z",
+  "updated": "2026-11-02T04:13:23.438Z",
   "clt": {
     "asof": "MLS standings through Oct 31",
     "rec": "15-10-8",
@@ -54,20 +54,13 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Oct 31",
-    "rec": "7-4-0",
-    "pts": 14,
-    "place": "2nd in the Atlantic",
-    "last": "Won 6-3 at Iowa, Oct 30",
-    "leaders": "Jack Devine 7 goals, 3 assists · Gracyn Sawchyn 2 goals, 5 assists",
+    "asof": "AHL stats through Nov 1",
+    "rec": "8-4-0",
+    "pts": 16,
+    "place": "1st in the Atlantic",
+    "last": "Won 5-4 in OT/SO at Iowa, Nov 1",
+    "leaders": "Jack Devine 8 goals, 3 assists · Gracyn Sawchyn 3 goals, 6 assists",
     "games": [
-      {
-        "at": "2026-11-01",
-        "opp": "Iowa",
-        "home": false,
-        "pick": null,
-        "why": ""
-      },
       {
         "at": "2026-11-06",
         "opp": "Wilkes-Barre/Scranton",
@@ -95,36 +88,43 @@
         "home": true,
         "pick": null,
         "why": ""
+      },
+      {
+        "at": "2026-11-14",
+        "opp": "Lehigh Valley",
+        "home": false,
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
+      [
+        "Charlotte",
+        ".667"
+      ],
       [
         "Hershey",
         ".667"
       ],
       [
-        "Charlotte",
-        ".636"
+        "Hartford",
+        ".500"
       ],
       [
         "Wilkes-Barre/Scranton",
         ".500"
       ],
       [
-        "Lehigh Valley",
-        ".500"
+        "Providence",
+        ".455"
       ],
       [
         "Springfield",
-        ".500"
+        ".450"
       ],
       [
-        "Hartford",
-        ".458"
-      ],
-      [
-        "Providence",
-        ".400"
+        "Lehigh Valley",
+        ".450"
       ]
     ]
   }
