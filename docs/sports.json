@@ -1,7 +1,7 @@
 {
-  "updated": "2026-11-02T14:03:52.030Z",
+  "updated": "2026-11-03T04:13:08.373Z",
   "clt": {
-    "asof": "MLS standings through Oct 31",
+    "asof": "MLS standings through Nov 2",
     "rec": "15-10-8",
     "pts": 53,
     "place": "5th in the East",
@@ -25,23 +25,23 @@
         "at": "2026-11-07T16:00",
         "opp": "Miami",
         "home": false,
-        "gf": 75,
-        "ga": 55,
-        "gp": 32
+        "gf": 77,
+        "ga": 56,
+        "gp": 33
       }
     ],
     "table": [
       [
         "Nashville",
-        71
+        74
+      ],
+      [
+        "Inter Miami",
+        59
       ],
       [
         "New England",
         58
-      ],
-      [
-        "Inter Miami",
-        56
       ],
       [
         "Chicago",
