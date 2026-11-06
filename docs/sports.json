@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-03T04:13:08.373Z",
+  "updated": "2026-11-06T13:15:34.696Z",
   "clt": {
     "asof": "MLS standings through Nov 2",
     "rec": "15-10-8",
@@ -54,7 +54,7 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Nov 2",
+    "asof": "AHL stats through Nov 6",
     "rec": "8-4-0",
     "pts": 16,
     "place": "1st in the Atlantic",
@@ -104,15 +104,19 @@
       ],
       [
         "Hershey",
-        ".600"
+        ".636"
       ],
       [
         "Wilkes-Barre/Scranton",
         ".550"
       ],
       [
-        "Hartford",
+        "Lehigh Valley",
         ".500"
+      ],
+      [
+        "Hartford",
+        ".464"
       ],
       [
         "Providence",
@@ -120,10 +124,6 @@
       ],
       [
         "Springfield",
-        ".450"
-      ],
-      [
-        "Lehigh Valley",
         ".450"
       ]
     ]
