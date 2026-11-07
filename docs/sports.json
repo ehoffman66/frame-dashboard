@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-06T13:15:34.696Z",
+  "updated": "2026-11-07T04:13:17.815Z",
   "clt": {
     "asof": "MLS standings through Nov 2",
     "rec": "15-10-8",
@@ -55,19 +55,12 @@
   },
   "chk": {
     "asof": "AHL stats through Nov 6",
-    "rec": "8-4-0",
-    "pts": 16,
+    "rec": "8-4-1",
+    "pts": 17,
     "place": "1st in the Atlantic",
-    "last": "Won 5-4 in OT/SO at Iowa, Nov 1",
-    "leaders": "Jack Devine 8 goals, 3 assists · Gracyn Sawchyn 3 goals, 6 assists",
+    "last": "Lost 4-3 in OT/SO vs Wilkes-Barre/Scranton, Nov 6",
+    "leaders": "Jack Devine 9 goals, 3 assists · Gracyn Sawchyn 3 goals, 6 assists",
     "games": [
-      {
-        "at": "2026-11-06",
-        "opp": "Wilkes-Barre/Scranton",
-        "home": true,
-        "pick": null,
-        "why": ""
-      },
       {
         "at": "2026-11-07",
         "opp": "Wilkes-Barre/Scranton",
@@ -95,12 +88,19 @@
         "home": false,
         "pick": null,
         "why": ""
+      },
+      {
+        "at": "2026-11-15",
+        "opp": "Hershey",
+        "home": false,
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
       [
         "Charlotte",
-        ".667"
+        ".654"
       ],
       [
         "Hershey",
@@ -108,7 +108,7 @@
       ],
       [
         "Wilkes-Barre/Scranton",
-        ".550"
+        ".591"
       ],
       [
         "Lehigh Valley",
