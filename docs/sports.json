@@ -1,32 +1,32 @@
 {
-  "updated": "2026-11-07T04:13:17.815Z",
+  "updated": "2026-11-08T04:13:42.288Z",
   "clt": {
-    "asof": "MLS standings through Nov 2",
-    "rec": "15-10-8",
-    "pts": 53,
-    "place": "5th in the East",
-    "last": "Beat Orlando 4-0, Oct 31",
-    "leaders": "Idan Toklomati 15 goals · Pep Biel 11 assists",
+    "asof": "MLS standings",
+    "rec": "15-10-9",
+    "pts": 54,
+    "place": "",
+    "last": "Drew Miami 3-3, Nov 7",
+    "leaders": "Idan Toklomati 15 goals · Pep Biel 18 assists",
     "form": 0.5,
     "homeAdv": 1.12,
     "leagueGoals": 3.21,
     "season": {
-      "gf": 63,
-      "ga": 48,
-      "gp": 33
+      "gf": 66,
+      "ga": 51,
+      "gp": 34
     },
     "post": {
-      "gf": 39,
-      "ga": 25,
-      "gp": 18
+      "gf": 42,
+      "ga": 28,
+      "gp": 19
     },
     "games": [
       {
-        "at": "2026-11-07T16:00",
-        "opp": "Miami",
+        "at": "2027-00-01",
+        "opp": "Chicago",
         "home": false,
-        "gf": 77,
-        "ga": 56,
+        "gf": 61,
+        "ga": 50,
         "gp": 33
       }
     ],
@@ -37,7 +37,7 @@
       ],
       [
         "Inter Miami",
-        59
+        60
       ],
       [
         "New England",
@@ -49,7 +49,7 @@
       ],
       [
         "Charlotte",
-        53
+        54
       ]
     ]
   },
