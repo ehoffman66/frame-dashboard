@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-08T04:13:42.288Z",
+  "updated": "2026-11-08T13:14:46.655Z",
   "clt": {
     "asof": "MLS standings",
     "rec": "15-10-9",
@@ -25,9 +25,9 @@
         "at": "2027-00-01",
         "opp": "Chicago",
         "home": false,
-        "gf": 61,
-        "ga": 50,
-        "gp": 33
+        "gf": 65,
+        "ga": 54,
+        "gp": 34
       }
     ],
     "table": [
@@ -54,20 +54,13 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Nov 6",
-    "rec": "8-4-1",
+    "asof": "AHL stats through Nov 8",
+    "rec": "8-5-1",
     "pts": 17,
-    "place": "1st in the Atlantic",
-    "last": "Lost 4-3 in OT/SO vs Wilkes-Barre/Scranton, Nov 6",
-    "leaders": "Jack Devine 9 goals, 3 assists · Gracyn Sawchyn 3 goals, 6 assists",
+    "place": "3rd in the Atlantic",
+    "last": "Lost 4-1 vs Wilkes-Barre/Scranton, Nov 7",
+    "leaders": "Jack Devine 9 goals, 3 assists · Gracyn Sawchyn 4 goals, 6 assists",
     "games": [
-      {
-        "at": "2026-11-07",
-        "opp": "Wilkes-Barre/Scranton",
-        "home": true,
-        "pick": null,
-        "why": ""
-      },
       {
         "at": "2026-11-10",
         "opp": "Providence",
@@ -95,36 +88,43 @@
         "home": false,
         "pick": null,
         "why": ""
+      },
+      {
+        "at": "2026-11-17",
+        "opp": "Hartford",
+        "home": false,
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
       [
-        "Charlotte",
-        ".654"
+        "Wilkes-Barre/Scranton",
+        ".625"
       ],
       [
         "Hershey",
-        ".636"
+        ".615"
       ],
       [
-        "Wilkes-Barre/Scranton",
-        ".591"
-      ],
-      [
-        "Lehigh Valley",
-        ".500"
+        "Charlotte",
+        ".607"
       ],
       [
         "Hartford",
-        ".464"
+        ".469"
       ],
       [
         "Providence",
-        ".455"
+        ".462"
       ],
       [
         "Springfield",
-        ".450"
+        ".458"
+      ],
+      [
+        "Lehigh Valley",
+        ".423"
       ]
     ]
   }
