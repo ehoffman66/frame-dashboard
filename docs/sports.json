@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-08T13:14:46.655Z",
+  "updated": "2026-11-09T04:12:50.854Z",
   "clt": {
     "asof": "MLS standings",
     "rec": "15-10-9",
@@ -22,7 +22,7 @@
     },
     "games": [
       {
-        "at": "2027-00-01",
+        "at": "2026-11-22T18:30",
         "opp": "Chicago",
         "home": false,
         "gf": 65,
@@ -33,7 +33,7 @@
     "table": [
       [
         "Nashville",
-        74
+        77
       ],
       [
         "Inter Miami",
