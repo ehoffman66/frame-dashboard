@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-10T04:13:11.203Z",
+  "updated": "2026-11-11T04:13:07.629Z",
   "clt": {
     "asof": "MLS standings",
     "rec": "15-10-9",
@@ -65,8 +65,8 @@
         "at": "2026-11-10",
         "opp": "Providence",
         "home": true,
-        "pick": null,
-        "why": ""
+        "pick": "Checkers win 3-2",
+        "why": "Charlotte has dropped 2 straight but is home and leads the Atlantic; Providence is 6-7-0. Jack Devine (team-high 9 G) was recalled to Florida, so expect less offense."
       },
       {
         "at": "2026-11-11",
