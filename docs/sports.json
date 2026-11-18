@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-16T13:12:54.111Z",
+  "updated": "2026-11-18T13:12:46.776Z",
   "clt": {
     "asof": "MLS standings",
     "rec": "15-10-9",
@@ -54,20 +54,13 @@
     ]
   },
   "chk": {
-    "asof": "AHL stats through Nov 16",
-    "rec": "10-7-1",
+    "asof": "AHL stats through Nov 18",
+    "rec": "10-8-1",
     "pts": 21,
-    "place": "3rd in the Atlantic",
-    "last": "Lost 4-3 at Hershey, Nov 15",
-    "leaders": "Jack Devine 9 goals, 6 assists · Gracyn Sawchyn 4 goals, 8 assists",
+    "place": "4th in the Atlantic",
+    "last": "Lost 5-1 at Hartford, Nov 17",
+    "leaders": "Jack Devine 10 goals, 6 assists · Gracyn Sawchyn 4 goals, 9 assists",
     "games": [
-      {
-        "at": "2026-11-17",
-        "opp": "Hartford",
-        "home": false,
-        "pick": null,
-        "why": ""
-      },
       {
         "at": "2026-11-20",
         "opp": "Springfield",
@@ -95,6 +88,13 @@
         "home": true,
         "pick": null,
         "why": ""
+      },
+      {
+        "at": "2026-12-04",
+        "opp": "Colorado",
+        "home": true,
+        "pick": null,
+        "why": ""
       }
     ],
     "table": [
@@ -107,16 +107,16 @@
         ".594"
       ],
       [
+        "Hartford",
+        ".553"
+      ],
+      [
         "Charlotte",
-        ".583"
+        ".553"
       ],
       [
         "Providence",
         ".529"
-      ],
-      [
-        "Hartford",
-        ".528"
       ],
       [
         "Springfield",
