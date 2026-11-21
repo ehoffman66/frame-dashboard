@@ -23,7 +23,7 @@
 // With these set, /<KEY>/music/... controls the Sonos rooms and plays your Sonos Favorites; without them it uses Spotify.
 
 const DAY = 86400000;
-const CACHE_SEC = 300;
+const CACHE_SEC = 60;
 
 export default {
   async fetch(request, env, ctx) {
