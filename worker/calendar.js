@@ -252,7 +252,10 @@ async function so(env, method, path, body, retried) {
   if (r.status === 401 && !retried) { globalThis.soToken = null; return so(env, method, path, body, true); }
   const text = await r.text(), j = text ? JSON.parse(text) : null;
   if (r.status === 401) throw new Error('Sonos refused the dashboard\'s access (401). Sign in again at /sonos/login and save the new SONOS_REFRESH');
-  if (!r.ok) throw new Error((j && (j.reason || j.errorCode)) || 'Sonos error ' + r.status);
+  const code = j && (j.errorCode || j.reason);
+  // Sonos answers Play on a room with an empty queue (or a source it can no longer reach) with this code
+  if (code === 'ERROR_PLAYBACK_NO_CONTENT') throw new Error(path.endsWith('/playback/play') ? 'This room has nothing queued. Pick a playlist or favorite below to start it.' : 'Sonos couldn\'t load anything from that. It may no longer be available; try another playlist or favorite.');
+  if (!r.ok) throw new Error(code || 'Sonos error ' + r.status);
   return j;
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
