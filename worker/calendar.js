@@ -322,12 +322,18 @@ function spotifyAccount(items) {
 async function loadSpotify(env, g, acct, c) {
   const send = a => so(env, 'POST', g + '/playback/content', { type: c.type, id: { objectId: c.objectId, serviceId: a.serviceId, accountId: a.accountId },
     queueAction: c.queueAction, playbackAction: c.playbackAction, playModes: c.playModes });
-  if (acct) { await send(acct); globalThis.soSpotify = acct; return; }
   let err = null;
+  if (acct) {
+    try { await send(acct); globalThis.soSpotify = acct; return; }
+    // A remembered account can go stale (Spotify relinked in the Sonos app gets a new sn_ number); forget it and look again
+    catch (e) { err = e; globalThis.soSpotify = null; }
+  }
   for (const sid of ['12', '9']) for (let n = 1; n <= 6; n++) {
     const a = { serviceId: sid, accountId: 'sn_' + n };
+    if (acct && a.serviceId === acct.serviceId && a.accountId === acct.accountId) continue;
     try { await send(a); globalThis.soSpotify = a; return; } catch (e) { err = err || e; }
   }
+  if (acct) throw err;
   throw new Error('Play something from Spotify on a Sonos once (or heart a Spotify playlist in the Sonos app), so Sonos knows which Spotify account to use. Sonos said: ' + (err ? err.message : 'nothing'));
 }
 // ...or from the copy the tablet kept from an earlier answer
