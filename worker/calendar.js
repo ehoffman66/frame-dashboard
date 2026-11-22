@@ -260,22 +260,31 @@ async function so(env, method, path, body, retried) {
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const sameName = (a, b) => { a = String(a || '').toLowerCase().trim(); b = String(b || '').toLowerCase().trim(); return !!a && !!b && (a === b || a.startsWith(b) || b.startsWith(a)); };
-async function nowName(env, g) {
+// The song a room is on: its name and, when Sonos gives it, its Spotify id (Sonos sometimes leaves out the name)
+async function nowItem(env, g) {
   const m = await so(env, 'GET', g + '/playbackMetadata').catch(() => null);
-  return m && m.currentItem && m.currentItem.track ? m.currentItem.track.name : '';
+  const t = m && m.currentItem && m.currentItem.track;
+  return { name: (t && t.name) || '', uri: t ? spotifyUri(JSON.stringify(t.id || '')) : '' };
 }
-// Skip from the first song to song number `index`, then nudge until the speaker reports the song that was tapped
-async function skipTo(env, g, index, name, first) {
-  // let the new queue start (until the playlist's first song shows, when we know it)
-  for (let n = 0; n < 6; n++) { const now = await nowName(env, g); if (first ? sameName(now, first) : now) break; await wait(500); }
-  const blind = name ? Math.max(0, index - 3) : index;
-  for (let n = 0; n < blind; n++) { await so(env, 'POST', g + '/playback/skipToNextTrack'); await wait(350); }
-  if (!name) return;
-  for (let n = 0; n < 6; n++) {
-    await wait(500);
-    if (sameName(await nowName(env, g), name)) return;
-    await so(env, 'POST', g + '/playback/skipToNextTrack');
-  }
+// Skip from the first song to song number `index`, then nudge until the speaker reports the song that was tapped.
+// Playback has already started by now, so a hiccup here never fails the request: worst case it stays on a nearby song.
+async function skipTo(env, g, index, name, first, track) {
+  const isIt = (it, n, u) => (u && it.uri ? it.uri === u : sameName(it.name, n));
+  try {
+    // let the new queue start (until the playlist's first song shows, when we know it)
+    for (let n = 0; n < 6; n++) { const it = await nowItem(env, g); if (first ? sameName(it.name, first) : (it.name || it.uri)) break; await wait(500); }
+    const blind = name || track ? Math.max(0, index - 3) : index;
+    for (let n = 0; n < blind; n++) { await so(env, 'POST', g + '/playback/skipToNextTrack'); await wait(350); }
+    if (!name && !track) return;
+    for (let n = 0; n < 6; n++) {
+      await wait(500);
+      const it = await nowItem(env, g);
+      if (isIt(it, name, track)) return;
+      // Sonos didn't say what's playing: don't skip blind, or we'd run past the tapped song (and off the end of the list)
+      if (!it.name && !it.uri) continue;
+      await so(env, 'POST', g + '/playback/skipToNextTrack');
+    }
+  } catch (e) { /* stay where we are */ }
 }
 // A Spotify link (spotify:playlist:ID and the like) from anything that mentions one, even URL-encoded
 function spotifyUri(text) {
@@ -452,7 +461,7 @@ async function sonos(request, url, env, cors, skip) {
             playModes: body.index !== undefined ? { shuffle: false } : {}
           }).catch(e => { throw /^Play something/.test(e.message) ? e : new Error('Sonos wouldn\'t play that from here (' + e.message + '). Add it to Sonos Favorites to play it'); });
           // Start partway into a playlist or album: Sonos has no "jump to song" here, so wait for it to load, then skip forward and check where it landed
-          if (index && !far) await skipTo(env, g, index, body.name || '', body.first || '');
+          if (index && !far) await skipTo(env, g, index, body.name || '', body.first || '', /^spotify:track:/.test(body.track || '') ? body.track : '');
         }
         else if (u) await so(env, 'POST', need() + '/favorites', { favoriteId: u.replace(/^fav:/, ''), playOnCompletion: true, action: 'REPLACE' });
         else await so(env, 'POST', need() + '/playback/play');
