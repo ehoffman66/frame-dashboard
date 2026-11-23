@@ -1,11 +1,11 @@
 {
-  "updated": "2026-11-22T13:13:15.781Z",
+  "updated": "2026-11-23T04:13:01.345Z",
   "clt": {
     "asof": "MLS standings",
     "rec": "15-10-9",
     "pts": 54,
     "place": "",
-    "last": "Drew Miami 3-3, Nov 7",
+    "last": "",
     "leaders": "Idan Toklomati 15 goals · Pep Biel 18 assists",
     "form": 0.5,
     "homeAdv": 1.12,
@@ -22,9 +22,9 @@
     },
     "games": [
       {
-        "at": "2026-11-22T18:30",
+        "at": "2026-11-28T12:30",
         "opp": "Chicago",
-        "home": false,
+        "home": true,
         "gf": 64,
         "ga": 54,
         "gp": 34
